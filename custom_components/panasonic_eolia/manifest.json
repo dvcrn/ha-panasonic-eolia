@@ -1,0 +1,12 @@
+{
+  "domain": "panasonic_eolia",
+  "name": "Panasonic Eolia",
+  "codeowners": [],
+  "dependencies": [],
+  "documentation": "https://github.com/yourusername/panasonic-aircon",
+  "iot_class": "cloud_polling",
+  "requirements": ["requests>=2.31.0"],
+  "version": "0.1.0",
+  "platforms": ["climate"],
+  "config_flow": true
+}
