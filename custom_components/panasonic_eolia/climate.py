@@ -6,6 +6,11 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
+from homeassistant.components.climate.const import (
+    PRESET_BOOST,
+    PRESET_NONE,
+    PRESET_SLEEP,
+)
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -72,6 +77,8 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.FAN_MODE
         | ClimateEntityFeature.SWING_MODE
+        | ClimateEntityFeature.PRESET_MODE
+        # | ClimateEntityFeature.SWING_HORIZONTAL_MODE
     )
     _appliance: Appliance
     _eolia: PanasonicEolia
@@ -223,6 +230,21 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         _LOGGER.debug(f"[{self._appliance.nickname}] swing_modes()")
         _LOGGER.debug(f"[{self._appliance.nickname}] current swing_mode {self._last_device_status.wind_direction}")
         return "Off"
+
+
+    @property
+    def preset_modes(self) -> list[str]:
+        return [PRESET_NONE, PRESET_SLEEP, PRESET_BOOST]
+
+    @property
+    def preset_mode(self) -> str:
+        if self._last_device_status.air_flow == AirFlow.QUIET:
+            return PRESET_SLEEP
+        elif self._last_device_status.air_flow == AirFlow.POWERFUL:
+            return PRESET_BOOST
+        else:
+            return PRESET_NONE
+
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
