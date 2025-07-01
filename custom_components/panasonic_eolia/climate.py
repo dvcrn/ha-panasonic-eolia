@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
 from custom_components.panasonic_eolia.eolia.responses import (
+    AirFlow,
     DeviceStatus,
     OperationMode,
     WindVolume,
@@ -186,24 +187,30 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def fan_modes(self) -> list[str]:
         """Return available fan modes."""
-        return ["Auto", "Low", "Medium", "High", "Max"]
+        return ["Auto", "Quiet", "Low", "Medium", "Medium High", "High", "Very High", "Max"]
 
     @property
     def fan_mode(self) -> str:
         """Return current fan mode."""
         _LOGGER.debug(f"[{self._appliance.nickname}] fan_mode()")
         _LOGGER.debug(f"[{self._appliance.nickname}] current wind_volume {self._last_device_status.wind_volume}")
+        _LOGGER.debug(f"[{self._appliance.nickname}] current air_flow {self._last_device_status.air_flow}")
 
-        if self._last_device_status.wind_volume == WindVolume.SILENT:
+        if self._last_device_status.wind_volume == WindVolume.LOW or self._last_device_status.wind_volume == WindVolume.MEDIUM:
             return "Low"
-        elif self._last_device_status.wind_volume == WindVolume.MEDIUM:
+        elif self._last_device_status.wind_volume == WindVolume.MEDIUM_HIGH:
             return "Medium"
         elif self._last_device_status.wind_volume == WindVolume.HIGH:
             return "High"
-        elif self._last_device_status.wind_volume == WindVolume.MAX:
-            return "Max"
+        elif self._last_device_status.wind_volume == WindVolume.VERY_HIGH:
+            return "Very High"
         else:
-            return "Auto"
+            if self._last_device_status.air_flow == AirFlow.QUIET:
+                return "Quiet"
+            elif self._last_device_status.air_flow == AirFlow.POWERFUL:
+                return "Max"
+            else:
+                return "Auto"
 
     @property
     def swing_modes(self) -> list[str]:

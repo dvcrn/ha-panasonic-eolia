@@ -60,7 +60,7 @@ class WindVolume(Enum):
     MEDIUM = 2
     MEDIUM_HIGH = 3
     HIGH = 4
-    MAX = 5
+    VERY_HIGH = 5
 
 class DevicesResponse:
     def __init__(self, ac_list=None):
