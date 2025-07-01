@@ -4,15 +4,25 @@ from __future__ import annotations
 import logging
 import os
 
-from homeassistant.components.climate import ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from custom_components.panasonic_eolia.eolia_data import EoliaData
 
 from .const import DOMAIN
 from .eolia.auth import PanasonicEolia
+
+# type PanasonicEoliaConfigEntry = ConfigEntry[PanasonicEolia]
+
+class EoliaDataUpdateCoordinator(DataUpdateCoordinator[EoliaData]):
+    def __init__(self) -> None:
+        _LOGGER.debug("EoliaDataUpdateCoordinator initialized")
+        super().__init__()
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -40,8 +50,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info(f"Using password from: {'environment variable' if 'PANASONIC_PASSWORD' in os.environ else 'hardcoded value'}")
 
     auth = PanasonicEolia(username, password, session=session)
-    if auth.authenticate():
+    if await auth.authenticate():
         _LOGGER.info("\nAuthentication successful!")
+
+        data_class = EoliaData(
+            eolia=auth
+        )
+
+        entry.runtime_data = data_class
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
