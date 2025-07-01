@@ -61,17 +61,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     # if await auth.authenticate():
 
     devices = await auth.get_devices()
-    _LOGGER.debug("devices", devices)
-
-    for device in devices:
-        _LOGGER.info(f"Loading Device: {device.nickname}")
-
-        # climateEntity = PanasonicEoliaClimate(device)
-
-        # async_add_entities(
-        #     [climateEntity]
-        # )
-
 
     data_class = EoliaData(
         eolia=auth,

@@ -16,6 +16,7 @@ from custom_components.panasonic_eolia.eolia.device import Appliance
 from custom_components.panasonic_eolia.eolia.responses import (
     DeviceStatus,
     OperationMode,
+    WindVolume,
 )
 from custom_components.panasonic_eolia.eolia_data import (
     EolliaApplianceDataCoordinator,
@@ -99,8 +100,6 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         _LOGGER.debug(f"handle_coordinator_update called with appliance: {self._appliance.nickname}")
-        _LOGGER.debug(self.coordinator.data)
-        _LOGGER.debug(dir(self.coordinator.data))
         status = self.coordinator.data.status
         # appliance =self.coordinator.data["appliance"]
 
@@ -187,12 +186,24 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def fan_modes(self) -> list[str]:
         """Return available fan modes."""
-        return ["Auto", "Low", "Medium", "High"]
+        return ["Auto", "Low", "Medium", "High", "Max"]
 
     @property
     def fan_mode(self) -> str:
         """Return current fan mode."""
-        return "Auto"
+        _LOGGER.debug(f"[{self._appliance.nickname}] fan_mode()")
+        _LOGGER.debug(f"[{self._appliance.nickname}] current wind_volume {self._last_device_status.wind_volume}")
+
+        if self._last_device_status.wind_volume == WindVolume.SILENT:
+            return "Low"
+        elif self._last_device_status.wind_volume == WindVolume.MEDIUM:
+            return "Medium"
+        elif self._last_device_status.wind_volume == WindVolume.HIGH:
+            return "High"
+        elif self._last_device_status.wind_volume == WindVolume.MAX:
+            return "Max"
+        else:
+            return "Auto"
 
     @property
     def swing_modes(self) -> list[str]:
@@ -202,6 +213,8 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def swing_mode(self) -> str:
         """Return current swing mode."""
+        _LOGGER.debug(f"[{self._appliance.nickname}] swing_modes()")
+        _LOGGER.debug(f"[{self._appliance.nickname}] current swing_mode {self._last_device_status.wind_direction}")
         return "Off"
 
     async def async_set_temperature(self, **kwargs: Any) -> None:

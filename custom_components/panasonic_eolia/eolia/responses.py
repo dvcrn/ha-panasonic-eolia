@@ -28,10 +28,8 @@ class AIControl(Enum):
 
 class AirFlow(Enum):
     NOT_SET = "not_set"
-    AUTO = "auto"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+    QUIET = "quiet"
+    POWERFUL = "powerful"
 
 
 class WindShieldHit(Enum):
@@ -49,6 +47,20 @@ class WindDirectionHorizon(Enum):
     CENTER_RIGHT = "center_right"
     WIDE = "wide"
 
+class WindDirection(Enum):
+    TOP = 1
+    MIDDLE_TOP = 2
+    MIDDLE = 3
+    MIDDLE_BOTTOM = 4
+    BOTTOM = 5
+
+class WindVolume(Enum):
+    AUTO = 0 # when "silent" or "powerful" mode are set, this is set to 0, aka auto
+    LOW = 1
+    MEDIUM = 2
+    MEDIUM_HIGH = 3
+    HIGH = 4
+    MAX = 5
 
 class DevicesResponse:
     def __init__(self, ac_list=None):
@@ -111,8 +123,8 @@ class DeviceStatus:
         )
 
         self.temperature: Optional[float] = kwargs.get('temperature')  # Target temperature
-        self.wind_volume: Optional[int] = kwargs.get('wind_volume')  # Fan speed level (e.g., 5)
-        self.wind_direction: Optional[int] = kwargs.get('wind_direction')  # Vertical direction (0 = ??)
+        # self.wind_volume: Optional[int] = kwargs.get('wind_volume')  # Fan speed level (e.g., 5)
+        # self.wind_direction: Optional[int] = kwargs.get('wind_direction')  # Vertical direction (0 = 5)
         self.inside_humidity: Optional[int] = kwargs.get('inside_humidity')  # 999 = not available
         self.inside_temp: Optional[float] = kwargs.get('inside_temp')  # Current indoor temperature
         self.outside_temp: Optional[float] = kwargs.get('outside_temp')  # 999.0 = not available
@@ -124,6 +136,16 @@ class DeviceStatus:
         self.aq_value: Optional[int] = kwargs.get('aq_value')  # Air quality value (-1 = not available)
 
         # Parse enum fields
+        self.wind_volume: Optional[Union[WindVolume, int]] = cast(
+            Optional[Union[WindVolume, int]],
+            self._parse_enum(kwargs.get('wind_volume'), WindVolume)
+        )
+
+        self.wind_direction: Optional[Union[WindDirection, str]] = cast(
+            Optional[Union[WindDirection, str]],
+            self._parse_enum(kwargs.get('wind_direction'), WindDirection)
+        )
+
         self.aq_name: Optional[Union[AirQualityName, str]] = cast(
             Optional[Union[AirQualityName, str]],
             self._parse_enum(kwargs.get('aq_name'), AirQualityName)
