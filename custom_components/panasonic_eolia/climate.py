@@ -11,8 +11,6 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
@@ -31,6 +29,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Panasonic Eolia climate platform."""
     _LOGGER.debug("Climate async_setup_entry called")
+    _LOGGER.debug(dir(entry))
 
     # For now, create a dummy entity
     # Later this will use the coordinator from hass.data[DOMAIN][entry.entry_id]

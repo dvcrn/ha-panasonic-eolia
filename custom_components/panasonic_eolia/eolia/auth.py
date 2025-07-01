@@ -13,9 +13,9 @@ import re
 import secrets
 import urllib.parse
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
-import requests
+import httpx
 
 from .device import Appliance
 from .requests import UpdateDeviceRequest
@@ -32,12 +32,12 @@ _LOGGER.setLevel(logging.DEBUG)
 
 
 class PanasonicEolia:
-    def __init__(self, username, password, session=None):
+    def __init__(self, username, password, session: Optional[httpx.AsyncClient] = None):
         if session:
             self.session = session
         else:
             _LOGGER.warning("no session provided, using default one")
-            self.session = requests.Session()
+            self.session = httpx.AsyncClient()
 
         self.username = username
         self.password = password
@@ -61,7 +61,7 @@ class PanasonicEolia:
         # Generate state
         self.state = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
 
-    def step1_authorize(self):
+    async def step1_authorize(self):
         """Step 1: Initial authorization request"""
         _LOGGER.debug("Step 1: Initial authorization request...")
 
@@ -77,10 +77,10 @@ class PanasonicEolia:
             'auth0Client': 'eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsImlPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ'
         }
 
-        response = self.session.get(
+        response = await self.session.get(
             'https://auth.digital.panasonic.com/authorize',
             params=params,
-            allow_redirects=False
+            follow_redirects=False
         )
 
         if response.status_code != 302:
@@ -96,12 +96,12 @@ class PanasonicEolia:
 
         return True
 
-    def step2_login_page(self):
+    async def step2_login_page(self):
         """Step 2: Get login page"""
         _LOGGER.debug("Step 2: Getting login page...")
 
         # Follow the redirect to login page
-        response = self.session.get(
+        response = await self.session.get(
             'https://auth.digital.panasonic.com/login',
             params={
                 'state': self.auth_state,
@@ -148,11 +148,11 @@ class PanasonicEolia:
 
         return True
 
-    def step3_challenge(self):
+    async def step3_challenge(self):
         """Step 3: Get challenge"""
         _LOGGER.debug("Step 3: Getting challenge...")
 
-        response = self.session.post(
+        response = await self.session.post(
             'https://auth.digital.panasonic.com/usernamepassword/challenge',
             headers={
                 'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ class PanasonicEolia:
 
         return True
 
-    def step4_login(self):
+    async def step4_login(self):
         """Step 4: Perform login"""
         _LOGGER.debug("Step 4: Performing login...")
 
@@ -193,7 +193,7 @@ class PanasonicEolia:
             'connection': 'CLUBPanasonic-Authentication'
         }
 
-        response = self.session.post(
+        response = await self.session.post(
             'https://auth.digital.panasonic.com/usernamepassword/login',
             headers={
                 'Content-Type': 'application/json',
@@ -224,9 +224,9 @@ class PanasonicEolia:
         wresult = html.unescape(wresult_match.group(1))
         wctx = html.unescape(wctx_match.group(1))
 
-        return self.step4b_callback(wa, wresult, wctx)
+        return await self.step4b_callback(wa, wresult, wctx)
 
-    def step4b_callback(self, wa, wresult, wctx):
+    async def step4b_callback(self, wa, wresult, wctx):
         """Step 4b: Submit the callback form"""
         _LOGGER.debug("Step 4b: Submitting callback...")
 
@@ -236,7 +236,7 @@ class PanasonicEolia:
             'wctx': wctx
         }
 
-        response = self.session.post(
+        response = await self.session.post(
             'https://auth.digital.panasonic.com/login/callback',
             headers={
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -244,7 +244,7 @@ class PanasonicEolia:
                 'Referer': 'https://auth.digital.panasonic.com/'
             },
             data=callback_data,
-            allow_redirects=False
+            follow_redirects=False
         )
 
         _LOGGER.debug(f"Callback response status: {response.status_code}")
@@ -257,7 +257,7 @@ class PanasonicEolia:
                 state_match = re.search(r'state=([^&]+)', location)
                 if state_match:
                     resume_state = state_match.group(1)
-                    return self.step4c_authorize_resume(resume_state)
+                    return await self.step4c_authorize_resume(resume_state)
                 else:
                     raise Exception("Could not extract state from resume redirect")
             else:
@@ -265,14 +265,14 @@ class PanasonicEolia:
         else:
             raise Exception(f"Callback failed with status {response.status_code}")
 
-    def step4c_authorize_resume(self, resume_state):
+    async def step4c_authorize_resume(self, resume_state):
         """Step 4c: Follow the authorize/resume redirect"""
         _LOGGER.debug("Step 4c: Following authorize/resume...")
 
-        response = self.session.get(
+        response = await self.session.get(
             'https://auth.digital.panasonic.com/authorize/resume',
             params={'state': resume_state},
-            allow_redirects=False
+            follow_redirects=False
         )
 
         _LOGGER.debug(f"Resume response status: {response.status_code}")
@@ -293,7 +293,7 @@ class PanasonicEolia:
         else:
             raise Exception(f"Resume failed with status {response.status_code}")
 
-    def step5_token_exchange(self):
+    async def step5_token_exchange(self):
         """Step 5: Exchange authorization code for access token"""
         _LOGGER.debug("Step 5: Exchanging code for token...")
 
@@ -305,7 +305,7 @@ class PanasonicEolia:
             'code_verifier': self.code_verifier
         }
 
-        response = self.session.post(
+        response = await self.session.post(
             'https://auth.digital.panasonic.com/oauth/token',
             headers={
                 'Content-Type': 'application/json',
@@ -326,20 +326,20 @@ class PanasonicEolia:
         _LOGGER.debug(f"Successfully obtained access token (expires in {self.expires_in} seconds)")
         return True
 
-    def authenticate(self):
+    async def authenticate(self):
         """Perform the complete authentication flow"""
         try:
-            self.step1_authorize()
-            self.step2_login_page()
-            self.step3_challenge()
-            self.step4_login()
-            self.step5_token_exchange()
+            await self.step1_authorize()
+            await self.step2_login_page()
+            await self.step3_challenge()
+            await self.step4_login()
+            await self.step5_token_exchange()
             return True
         except Exception as e:
             _LOGGER.debug(f"Authentication failed: {e}")
             return False
 
-    def get_devices(self) -> List[Appliance]:
+    async def get_devices(self) -> List[Appliance]:
         """Test the authentication by fetching devices"""
         _LOGGER.debug("\nFetching devices...")
 
@@ -356,7 +356,7 @@ class PanasonicEolia:
             'User-Agent': '%E3%82%A8%E3%82%AA%E3%83%AA%E3%82%A2/81 CFNetwork/3826.600.31 Darwin/24.6.0'
         }
 
-        response = requests.get(
+        response = await self.session.get(
             'https://app.rac.apws.panasonic.com/eolia/v6/devices',
             headers=headers
         )
@@ -368,7 +368,7 @@ class PanasonicEolia:
             _LOGGER.debug(f"Failed to fetch devices: {response.status_code} - {response.text}")
             return None
 
-    def get_product_functions(self, product_code: str):
+    async def get_product_functions(self, product_code: str):
         """Get function list for a specific product"""
         _LOGGER.debug(f"\nFetching functions for product {product_code}...")
 
@@ -385,7 +385,7 @@ class PanasonicEolia:
             'User-Agent': '%E3%82%A8%E3%82%AA%E3%83%AA%E3%82%A2/81 CFNetwork/3826.600.31 Darwin/24.6.0'
         }
 
-        response = requests.get(
+        response = await self.session.get(
             f'https://app.rac.apws.panasonic.com/eolia/v6/products/{product_code}/functions',
             headers=headers
         )
@@ -396,7 +396,7 @@ class PanasonicEolia:
             _LOGGER.debug(f"Failed to fetch product functions: {response.status_code} - {response.text}")
             return None
 
-    def get_device_status(self, device_id: str) -> DeviceStatus:
+    async def get_device_status(self, device_id: str) -> DeviceStatus:
         """Get status for a specific device"""
         _LOGGER.debug(f"\nFetching status for device {device_id}...")
 
@@ -416,7 +416,7 @@ class PanasonicEolia:
         # URL encode the device_id
         encoded_device_id = urllib.parse.quote(device_id, safe='')
 
-        response = requests.get(
+        response = await self.session.get(
             f'https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status',
             headers=headers
         )
@@ -427,7 +427,7 @@ class PanasonicEolia:
             _LOGGER.debug(f"Failed to fetch device status: {response.status_code} - {response.text}")
             return None
 
-    def update_device_status(self, device_id: str, status: UpdateDeviceRequest):
+    async def update_device_status(self, device_id: str, status: UpdateDeviceRequest):
         """Update device status by sending PUT request"""
         _LOGGER.debug(f"\nUpdating status for device {device_id}...")
 
@@ -454,7 +454,7 @@ class PanasonicEolia:
         if 'operation_token' not in payload or payload['operation_token'] is None:
             _LOGGER.debug("Warning: No operation_token provided. You should use the token from the last status response.")
             # For now, we'll need to fetch the current status first
-            current_status = self.get_device_status(device_id)
+            current_status = await self.get_device_status(device_id)
             if current_status and current_status.operation_token:
                 payload['operation_token'] = current_status.operation_token
             else:
@@ -464,7 +464,7 @@ class PanasonicEolia:
 
         _LOGGER.debug(f"Full URL: https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status")
 
-        response = requests.put(
+        response = await self.session.put(
             f'https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status',
             headers=headers,
             json=payload
@@ -478,5 +478,3 @@ class PanasonicEolia:
             return None
 
 
-if __name__ == "__main__":
-    main()

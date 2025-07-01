@@ -39,7 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
 
-    session = async_get_clientsession(hass)
+    session = get_async_client(hass)
     _LOGGER.info("Got aiohttp session from Home Assistant")
 
     password = os.environ.get('PANASONIC_PASSWORD', "")
@@ -53,11 +53,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if await auth.authenticate():
         _LOGGER.info("\nAuthentication successful!")
 
-        data_class = EoliaData(
-            eolia=auth
-        )
+        # data_class = EoliaData(
+        #     eolia=auth
+        # )
 
-        entry.runtime_data = data_class
+        _LOGGER.debug(entry.data)
+
+        # entry.runtime_data = data_class
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
