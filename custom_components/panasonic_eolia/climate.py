@@ -10,7 +10,12 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
+from custom_components.panasonic_eolia.eolia.responses import (
+    DeviceStatus,
+    OperationMode,
+)
 from custom_components.panasonic_eolia.eolia_data import (
     PanasonicEoliaConfigEntry,
 )
@@ -39,9 +44,13 @@ async def async_setup_entry(
     _LOGGER.debug(f"Climate async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}")
 
 
+    entities = []
     for device in entry.runtime_data.appliances:
-        _LOGGER.info("Found devices;", device.nickname)
+        entity = PanasonicEoliaClimate(device, entry.runtime_data.eolia)
+        await entity.query_device_state()
+        entities.append(entity)
 
+    async_add_entities(entities)
 
     # For now, create a dummy entity
     # Later this will use the coordinator from hass.data[DOMAIN][entry.entry_id]
@@ -58,28 +67,62 @@ class PanasonicEoliaClimate(ClimateEntity):
         | ClimateEntityFeature.FAN_MODE
         | ClimateEntityFeature.SWING_MODE
     )
+    _appliance: Appliance
+    _eolia: PanasonicEolia
+    _last_device_status: DeviceStatus
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
-    def __init__(self, appliance: Appliance) -> None:
+    def __init__(self, appliance: Appliance, eolia: PanasonicEolia) -> None:
         """Initialize the climate device."""
         _LOGGER.debug(f"Climate entity init called with appliance: {appliance.nickname}")
         super().__init__()
 
         # Temporary hardcoded values
-        self._attr_unique_id = "panasonic_eolia_test"
-        self._attr_name = "Test AC"
+        self._attr_unique_id = appliance.appliance_id
+        self._attr_name = appliance.nickname
+
+        self._eolia = eolia
+        self._appliance = appliance
+
 
         # State variables
-        self._current_temperature = 25.0
-        self._target_temperature = 22.0
-        self._hvac_mode = HVACMode.OFF
-        self._is_on = False
+        # self._current_temperature = 25.0
+        # self._target_temperature = 22.0
+        # self._hvac_mode = HVACMode.OFF
+        # self._is_on = False
+
+    async def query_device_state(self):
+        """Query the device state."""
+        if self._appliance.appliance_id is not None:
+            try:
+                status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                _LOGGER.debug(f"Device status: {status}")
+                _LOGGER.debug("Device status keys and values:")
+                for key, value in vars(status).items():
+                    _LOGGER.debug(f"  {key}: {value}")
+                self._last_device_status = status
+            except Exception as e:
+                _LOGGER.error(f"Failed to query device state: {e}")
 
     @property
     def hvac_mode(self) -> HVACMode:
         """Return current HVAC mode."""
-        if not self._is_on:
+        _LOGGER.debug(f"[{self._appliance.nickname}] hvac_mode() == {self._last_device_status.operation_mode}")
+        if self._last_device_status.operation_mode  == OperationMode.OFF:
             return HVACMode.OFF
-        return self._hvac_mode
+        elif self._last_device_status.operation_mode == OperationMode.COOLING:
+            _LOGGER.debug(f"[{self._appliance.nickname}] hvac_mode is COOL")
+            return HVACMode.COOL
+        elif self._last_device_status.operation_mode == OperationMode.HEATING:
+            return HVACMode.HEAT
+        elif self._last_device_status.operation_mode == OperationMode.AUTO:
+            return HVACMode.HEAT_COOL
+        elif self._last_device_status.operation_mode == OperationMode.DRY:
+            return HVACMode.DRY
+        elif self._last_device_status.operation_mode == OperationMode.FAN:
+            return HVACMode.FAN_ONLY
+        else:
+            return HVACMode.OFF
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
@@ -96,12 +139,13 @@ class PanasonicEoliaClimate(ClimateEntity):
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        return self._current_temperature
+        _LOGGER.debug(f"[{self._appliance.nickname}] current_temperature()")
+        return self._last_device_status.inside_temp
 
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
-        return self._target_temperature
+        return self._last_device_status.temperature
 
     @property
     def fan_modes(self) -> list[str]:

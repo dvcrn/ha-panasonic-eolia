@@ -1,5 +1,16 @@
+from enum import Enum
+
 from .device import Appliance
 from .requests import UpdateDeviceRequest
+
+
+class OperationMode(Enum):
+    OFF = "Off"
+    COOLING = "Cooling"
+    HEATING = "Heating"
+    AUTO = "Auto"
+    DRY = "CoolDehumidifying"
+    FAN = "Fan"
 
 
 class DevicesResponse:
@@ -55,7 +66,22 @@ class DeviceStatus:
         # Define expected attributes with default values
         self.appliance_id = kwargs.get('appliance_id')
         self.operation_status = kwargs.get('operation_status')
-        self.operation_mode = kwargs.get('operation_mode')
+
+        # Convert operation_mode string to enum if provided
+        operation_mode_value = kwargs.get('operation_mode')
+        if operation_mode_value is not None:
+            # Try to find matching enum value
+            self.operation_mode = None
+            for mode in OperationMode:
+                if mode.value == operation_mode_value:
+                    self.operation_mode = mode
+                    break
+            # If no match found, store the raw value
+            if self.operation_mode is None:
+                self.operation_mode = operation_mode_value
+        else:
+            self.operation_mode = None
+
         self.temperature = kwargs.get('temperature')
         self.wind_volume = kwargs.get('wind_volume')
         self.wind_direction = kwargs.get('wind_direction')
@@ -84,7 +110,7 @@ class DeviceStatus:
         return {
             'appliance_id': self.appliance_id,
             'operation_status': self.operation_status,
-            'operation_mode': self.operation_mode,
+            'operation_mode': self.operation_mode.value if isinstance(self.operation_mode, OperationMode) else self.operation_mode,
             'temperature': self.temperature,
             'wind_volume': self.wind_volume,
             'wind_direction': self.wind_direction,
@@ -114,7 +140,7 @@ class DeviceStatus:
             airquality=self.airquality,
             wind_volume=self.wind_volume,
             temperature=str(self.temperature) if self.temperature is not None else None,
-            operation_mode=self.operation_mode,
+            operation_mode=self.operation_mode.value if isinstance(self.operation_mode, OperationMode) else self.operation_mode,
             wind_direction=self.wind_direction,
             timer_value=str(self.timer_value) if self.timer_value is not None else None,
             operation_token=self.operation_token,
