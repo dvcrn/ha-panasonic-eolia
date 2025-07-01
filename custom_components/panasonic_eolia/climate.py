@@ -6,10 +6,14 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from custom_components.panasonic_eolia.eolia.device import Appliance
+from custom_components.panasonic_eolia.eolia_data import (
+    PanasonicEoliaConfigEntry,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -24,16 +28,24 @@ HVAC_MODE_MAP = {
 
 HVAC_MODE_MAP_REVERSE = {v: k for k, v in HVAC_MODE_MAP.items()}
 
+
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: PanasonicEoliaConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the Panasonic Eolia climate platform."""
-    _LOGGER.debug("Climate async_setup_entry called")
-    _LOGGER.debug(dir(entry))
+    _LOGGER.debug(dir(entry.runtime_data))
+    _LOGGER.debug(entry.runtime_data)
+
+    _LOGGER.debug(f"Climate async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}")
+
+
+    for device in entry.runtime_data.appliances:
+        _LOGGER.info("Found devices;", device.nickname)
+
 
     # For now, create a dummy entity
     # Later this will use the coordinator from hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([PanasonicEoliaClimate()])
+    # async_add_entities([PanasonicEoliaClimate()])
 
 
 class PanasonicEoliaClimate(ClimateEntity):
@@ -47,9 +59,9 @@ class PanasonicEoliaClimate(ClimateEntity):
         | ClimateEntityFeature.SWING_MODE
     )
 
-    def __init__(self) -> None:
+    def __init__(self, appliance: Appliance) -> None:
         """Initialize the climate device."""
-        _LOGGER.debug("Climate entity init called")
+        _LOGGER.debug(f"Climate entity init called with appliance: {appliance.nickname}")
         super().__init__()
 
         # Temporary hardcoded values

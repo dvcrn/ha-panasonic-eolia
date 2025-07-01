@@ -118,8 +118,8 @@ class PanasonicEolia:
         )
 
         # Debug: Save response to file
-        with open('login_response.html', 'w') as f:
-            f.write(response.text)
+        # with open('login_response.html', 'w') as f:
+        #     f.write(response.text)
 
         # Extract CSRF token from response
         # Try multiple patterns
@@ -476,5 +476,3 @@ class PanasonicEolia:
         else:
             _LOGGER.debug(f"Failed to update device status: {response.status_code} - {response.text}")
             return None
-
-

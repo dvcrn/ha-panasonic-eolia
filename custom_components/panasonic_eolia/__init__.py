@@ -8,16 +8,20 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from custom_components.panasonic_eolia.eolia_data import EoliaData
+from custom_components.panasonic_eolia.climate import PanasonicEoliaClimate
+from custom_components.panasonic_eolia.eolia_data import (
+    EoliaData,
+    PanasonicEoliaConfigEntry,
+)
 
 from .const import DOMAIN
 from .eolia.auth import PanasonicEolia
 
-# type PanasonicEoliaConfigEntry = ConfigEntry[PanasonicEolia]
 
 class EoliaDataUpdateCoordinator(DataUpdateCoordinator[EoliaData]):
     def __init__(self) -> None:
@@ -31,7 +35,7 @@ _LOGGER.setLevel(logging.DEBUG)
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 PLATFORMS: list[Platform] = [Platform.CLIMATE]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntry) -> bool:
     """Set up Panasonic Eolia from a config entry."""
     _LOGGER.debug("async_setup_entry called")
 
@@ -53,11 +57,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if await auth.authenticate():
         _LOGGER.info("\nAuthentication successful!")
 
-        # data_class = EoliaData(
-        #     eolia=auth
-        # )
+        devices = await auth.get_devices()
+        _LOGGER.debug("devices", devices)
 
-        _LOGGER.debug(entry.data)
+        for device in devices:
+            _LOGGER.info(f"Loading Device: {device.nickname}")
+
+            # climateEntity = PanasonicEoliaClimate(device)
+
+            # async_add_entities(
+            #     [climateEntity]
+            # )
+
+
+        data_class = EoliaData(
+            eolia=auth,
+            appliances=devices,
+        )
+
+        entry.runtime_data = data_class
+
+        _LOGGER.debug("written runtime data ")
+        _LOGGER.debug(entry.runtime_data)
 
         # entry.runtime_data = data_class
 
