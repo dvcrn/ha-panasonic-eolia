@@ -7,8 +7,9 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
@@ -17,6 +18,7 @@ from custom_components.panasonic_eolia.eolia.responses import (
     OperationMode,
 )
 from custom_components.panasonic_eolia.eolia_data import (
+    EolliaApplianceDataCoordinator,
     PanasonicEoliaConfigEntry,
 )
 
@@ -46,7 +48,9 @@ async def async_setup_entry(
 
     entities = []
     for device in entry.runtime_data.appliances:
-        entity = PanasonicEoliaClimate(device, entry.runtime_data.eolia)
+        coordinator = EolliaApplianceDataCoordinator(hass, entry.runtime_data.eolia, device)
+
+        entity = PanasonicEoliaClimate(coordinator=coordinator, appliance=device, eolia=entry.runtime_data.eolia)
         await entity.query_device_state()
         entities.append(entity)
 
@@ -57,7 +61,7 @@ async def async_setup_entry(
     # async_add_entities([PanasonicEoliaClimate()])
 
 
-class PanasonicEoliaClimate(ClimateEntity):
+class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     """Representation of a Panasonic Eolia climate device."""
 
     _attr_has_entity_name = True
@@ -72,10 +76,10 @@ class PanasonicEoliaClimate(ClimateEntity):
     _last_device_status: DeviceStatus
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
-    def __init__(self, appliance: Appliance, eolia: PanasonicEolia) -> None:
+    def __init__(self, coordinator: EolliaApplianceDataCoordinator, appliance: Appliance, eolia: PanasonicEolia) -> None:
         """Initialize the climate device."""
         _LOGGER.debug(f"Climate entity init called with appliance: {appliance.nickname}")
-        super().__init__()
+        super().__init__(coordinator=coordinator)
 
         # Temporary hardcoded values
         self._attr_unique_id = appliance.appliance_id
@@ -90,6 +94,39 @@ class PanasonicEoliaClimate(ClimateEntity):
         # self._target_temperature = 22.0
         # self._hvac_mode = HVACMode.OFF
         # self._is_on = False
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        _LOGGER.debug(f"handle_coordinator_update called with appliance: {self._appliance.nickname}")
+        _LOGGER.debug(self.coordinator.data)
+        _LOGGER.debug(dir(self.coordinator.data))
+        status = self.coordinator.data.status
+        # appliance =self.coordinator.data["appliance"]
+
+        self._last_device_status = status
+
+        # self._attr_is_on = self.coordinator.data[self.idx]["state"]
+        self.async_write_ha_state()
+
+    @property
+    def should_poll(self) -> bool:
+        """Return True if entity should be polled."""
+        return False
+
+    async def async_update(self) -> None:
+        """Update the entity."""
+        await self.query_device_state()
+
+    async def async_added_to_hass(self) -> None:
+        """When entity is added to hass."""
+        await super().async_added_to_hass()
+        await self.query_device_state()
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self._last_device_status is not None
 
     async def query_device_state(self):
         """Query the device state."""

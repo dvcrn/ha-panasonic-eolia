@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -14,7 +15,10 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from custom_components.panasonic_eolia.climate import PanasonicEoliaClimate
+from custom_components.panasonic_eolia.eolia.device import Appliance
+from custom_components.panasonic_eolia.eolia.responses import DeviceStatus
 from custom_components.panasonic_eolia.eolia_data import (
+    EoliaApplianceData,
     EoliaData,
     PanasonicEoliaConfigEntry,
 )
@@ -22,14 +26,10 @@ from custom_components.panasonic_eolia.eolia_data import (
 from .const import DOMAIN
 from .eolia.auth import PanasonicEolia
 
-
-class EoliaDataUpdateCoordinator(DataUpdateCoordinator[EoliaData]):
-    def __init__(self) -> None:
-        _LOGGER.debug("EoliaDataUpdateCoordinator initialized")
-        super().__init__()
-
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
+
+SCAN_INTERVAL = timedelta(seconds=15)
 
 # Use empty_config_schema because the component does not have any config options
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
