@@ -37,7 +37,12 @@ class PanasonicEolia:
             self.session = session
         else:
             _LOGGER.warning("no session provided, using default one")
-            self.session = httpx.AsyncClient()
+            # Create client with cookie support and longer timeout
+            self.session = httpx.AsyncClient(
+                timeout=httpx.Timeout(30.0),
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                follow_redirects=False  # We handle redirects manually
+            )
 
         self.username = username
         self.password = password
@@ -118,8 +123,8 @@ class PanasonicEolia:
         )
 
         # Debug: Save response to file
-        # with open('login_response.html', 'w') as f:
-        #     f.write(response.text)
+        with open('login_response.html', 'w') as f:
+            f.write(response.text)
 
         # Extract CSRF token from response
         # Try multiple patterns
@@ -276,18 +281,70 @@ class PanasonicEolia:
         )
 
         _LOGGER.debug(f"Resume response status: {response.status_code}")
+        _LOGGER.debug(f"Resume response headers: {dict(response.headers)}")
 
         if response.status_code == 302:
             # This should redirect to the app callback with the code
             location = response.headers.get('Location')
             if location:
-                code_match = re.search(r'code=([^&]+)', location)
-                if code_match:
-                    self.auth_code = code_match.group(1)
-                    _LOGGER.debug(f"Got authorization code: {self.auth_code[:10]}...")
-                    return True
+                _LOGGER.debug(f"Resume redirect location: {location}")
+                
+                # Check if this is a cookie attachment redirect
+                if 'cookie/attachContentToken' in location:
+                    _LOGGER.debug("Got cookie attachment redirect, following it...")
+                    # Follow the cookie attachment redirect
+                    cookie_response = await self.session.get(
+                        location,
+                        follow_redirects=False
+                    )
+                    _LOGGER.debug(f"Cookie attachment response status: {cookie_response.status_code}")
+                    _LOGGER.debug(f"Cookie attachment response headers: {dict(cookie_response.headers)}")
+                    
+                    if cookie_response.status_code == 302:
+                        next_location = cookie_response.headers.get('Location')
+                        if next_location and '/authorize' in next_location:
+                            _LOGGER.debug("Got redirect back to authorize, following it...")
+                            # Follow the authorize redirect
+                            auth_response = await self.session.get(
+                                next_location,
+                                follow_redirects=False
+                            )
+                            _LOGGER.debug(f"Final authorize response status: {auth_response.status_code}")
+                            _LOGGER.debug(f"Final authorize response headers: {dict(auth_response.headers)}")
+                            
+                            if auth_response.status_code == 302:
+                                final_location = auth_response.headers.get('Location')
+                                if final_location:
+                                    _LOGGER.debug(f"Final redirect location: {final_location}")
+                                    code_match = re.search(r'code=([^&]+)', final_location)
+                                    if code_match:
+                                        self.auth_code = code_match.group(1)
+                                        _LOGGER.debug(f"Got authorization code: {self.auth_code[:10]}...")
+                                        return True
+                                    else:
+                                        raise Exception(f"Could not extract authorization code from final redirect: {final_location}")
+                            else:
+                                raise Exception(f"Final authorize failed with status {auth_response.status_code}")
+                        elif next_location:
+                            # Check if the code is in this redirect
+                            code_match = re.search(r'code=([^&]+)', next_location)
+                            if code_match:
+                                self.auth_code = code_match.group(1)
+                                _LOGGER.debug(f"Got authorization code: {self.auth_code[:10]}...")
+                                return True
+                            else:
+                                raise Exception(f"Could not extract authorization code from redirect: {next_location}")
+                    else:
+                        raise Exception(f"Cookie attachment failed with status {cookie_response.status_code}")
                 else:
-                    raise Exception(f"Could not extract authorization code from final redirect: {location}")
+                    # Try to extract code directly
+                    code_match = re.search(r'code=([^&]+)', location)
+                    if code_match:
+                        self.auth_code = code_match.group(1)
+                        _LOGGER.debug(f"Got authorization code: {self.auth_code[:10]}...")
+                        return True
+                    else:
+                        raise Exception(f"Could not extract authorization code from redirect: {location}")
             else:
                 raise Exception("Resume response missing Location header")
         else:

@@ -8,6 +8,9 @@ services:
       - TZ=America/New_York
       - PANASONIC_USERNAME
       - PANASONIC_PASSWORD
+      - PANASONIC_ACCESS_TOKEN
+      - PANASONIC_ID_TOKEN
+      - PANASONIC_REFRESH_TOKEN
     volumes:
       - /tmp/config:/config
       - /Users/david/src/panasonic-aircon/custom_components:/config/custom_components
