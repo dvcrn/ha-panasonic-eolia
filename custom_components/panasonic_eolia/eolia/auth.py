@@ -32,7 +32,7 @@ _LOGGER.setLevel(logging.DEBUG)
 
 
 class PanasonicEolia:
-    def __init__(self, username, password, session: Optional[httpx.AsyncClient] = None):
+    def __init__(self, username=None, password=None, access_token=None, refresh_token=None, session: Optional[httpx.AsyncClient] = None):
         if session:
             self.session = session
         else:
@@ -44,8 +44,20 @@ class PanasonicEolia:
                 follow_redirects=False  # We handle redirects manually
             )
 
-        self.username = username
-        self.password = password
+        # Check that we have either username/password OR access_token/refresh_token
+        if username and password:
+            self.username = username
+            self.password = password
+            self.access_token = None
+            self.refresh_token = None
+        elif access_token and refresh_token:
+            self.username = None
+            self.password = None
+            self.access_token = access_token
+            self.refresh_token = refresh_token
+        else:
+            raise ValueError("Must provide either username/password OR access_token/refresh_token")
+
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'
         })
@@ -288,7 +300,7 @@ class PanasonicEolia:
             location = response.headers.get('Location')
             if location:
                 _LOGGER.debug(f"Resume redirect location: {location}")
-                
+
                 # Check if this is a cookie attachment redirect
                 if 'cookie/attachContentToken' in location:
                     _LOGGER.debug("Got cookie attachment redirect, following it...")
@@ -299,7 +311,7 @@ class PanasonicEolia:
                     )
                     _LOGGER.debug(f"Cookie attachment response status: {cookie_response.status_code}")
                     _LOGGER.debug(f"Cookie attachment response headers: {dict(cookie_response.headers)}")
-                    
+
                     if cookie_response.status_code == 302:
                         next_location = cookie_response.headers.get('Location')
                         if next_location and '/authorize' in next_location:
@@ -311,7 +323,7 @@ class PanasonicEolia:
                             )
                             _LOGGER.debug(f"Final authorize response status: {auth_response.status_code}")
                             _LOGGER.debug(f"Final authorize response headers: {dict(auth_response.headers)}")
-                            
+
                             if auth_response.status_code == 302:
                                 final_location = auth_response.headers.get('Location')
                                 if final_location:

@@ -46,6 +46,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     session = get_async_client(hass)
     _LOGGER.info("Got aiohttp session from Home Assistant")
 
+    access_token = os.environ.get('PANASONIC_ACCESS_TOKEN', "")
+    refresh_token = os.environ.get('PANASONIC_REFRESH_TOKEN', "")
     password = os.environ.get('PANASONIC_PASSWORD', "")
     username_hex = os.environ.get('PANASONIC_USERNAME', "")
 
@@ -53,34 +55,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     _LOGGER.info(f"Decoded username: {username}")
     _LOGGER.info(f"Using password from: {'environment variable' if 'PANASONIC_PASSWORD' in os.environ else 'hardcoded value'}")
 
-    auth = PanasonicEolia(username, password, session=session)
-    if await auth.authenticate():
-        _LOGGER.info("\nAuthentication successful!")
+    auth = PanasonicEolia(access_token=access_token, refresh_token=refresh_token, session=session)
+    # auth = PanasonicEolia(username, password, session=session)
+    # TODO: fix proper authentication with 2fa
+    # if await auth.authenticate():
 
-        devices = await auth.get_devices()
-        _LOGGER.debug("devices", devices)
+    devices = await auth.get_devices()
+    _LOGGER.debug("devices", devices)
 
-        for device in devices:
-            _LOGGER.info(f"Loading Device: {device.nickname}")
+    for device in devices:
+        _LOGGER.info(f"Loading Device: {device.nickname}")
 
-            # climateEntity = PanasonicEoliaClimate(device)
+        # climateEntity = PanasonicEoliaClimate(device)
 
-            # async_add_entities(
-            #     [climateEntity]
-            # )
+        # async_add_entities(
+        #     [climateEntity]
+        # )
 
 
-        data_class = EoliaData(
-            eolia=auth,
-            appliances=devices,
-        )
+    data_class = EoliaData(
+        eolia=auth,
+        appliances=devices,
+    )
 
-        entry.runtime_data = data_class
+    entry.runtime_data = data_class
 
-        _LOGGER.debug("written runtime data ")
-        _LOGGER.debug(entry.runtime_data)
+    _LOGGER.debug("written runtime data ")
+    _LOGGER.debug(entry.runtime_data)
 
-        # entry.runtime_data = data_class
+    # entry.runtime_data = data_class
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
