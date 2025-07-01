@@ -22,6 +22,7 @@ from custom_components.panasonic_eolia.eolia.responses import (
     AirFlow,
     DeviceStatus,
     OperationMode,
+    WindDirection,
     WindVolume,
 )
 from custom_components.panasonic_eolia.eolia_data import (
@@ -222,14 +223,29 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def swing_modes(self) -> list[str]:
         """Return available swing modes."""
-        return ["Off", "Vertical", "Horizontal", "Both"]
+        return ["Auto", "Top", "Middle Top", "Middle", "Middle Bottom", "Bottom", "Auto", "Swing"]
 
     @property
     def swing_mode(self) -> str:
         """Return current swing mode."""
         _LOGGER.debug(f"[{self._appliance.nickname}] swing_modes()")
         _LOGGER.debug(f"[{self._appliance.nickname}] current swing_mode {self._last_device_status.wind_direction}")
-        return "Off"
+        if self._last_device_status.wind_direction == WindDirection.AUTO:
+            return "Auto"
+        if self._last_device_status.wind_direction == WindDirection.TOP:
+            return "Top"
+        elif self._last_device_status.wind_direction == WindDirection.MIDDLE_TOP:
+            return "Middle Top"
+        elif self._last_device_status.wind_direction == WindDirection.MIDDLE:
+            return "Middle"
+        elif self._last_device_status.wind_direction == WindDirection.MIDDLE_BOTTOM:
+            return "Middle Bottom"
+        elif self._last_device_status.wind_direction == WindDirection.BOTTOM:
+            return "Bottom"
+        elif self._last_device_status.wind_direction == WindDirection.SWING:
+            return "Swing"
+        else:
+            return "Auto"
 
 
     @property

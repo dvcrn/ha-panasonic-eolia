@@ -48,11 +48,13 @@ class WindDirectionHorizon(Enum):
     WIDE = "wide"
 
 class WindDirection(Enum):
+    AUTO = 0
     TOP = 1
     MIDDLE_TOP = 2
     MIDDLE = 3
     MIDDLE_BOTTOM = 4
     BOTTOM = 5
+    SWING = 6
 
 class WindVolume(Enum):
     AUTO = 0 # when "silent" or "powerful" mode are set, this is set to 0, aka auto
