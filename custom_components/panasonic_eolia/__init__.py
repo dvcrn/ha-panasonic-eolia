@@ -33,7 +33,7 @@ SCAN_INTERVAL = timedelta(seconds=15)
 
 # Use empty_config_schema because the component does not have any config options
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
-PLATFORMS: list[Platform] = [Platform.CLIMATE]
+PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntry) -> bool:
     """Set up Panasonic Eolia from a config entry."""
