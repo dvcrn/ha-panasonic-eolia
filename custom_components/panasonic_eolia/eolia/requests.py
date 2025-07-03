@@ -1,5 +1,5 @@
 class UpdateDeviceRequest:
-    def __init__(self, 
+    def __init__(self,
                  nanoex=None,
                  operation_status=None,
                  airquality=None,
@@ -9,7 +9,9 @@ class UpdateDeviceRequest:
                  wind_direction=None,
                  timer_value=None,
                  operation_token=None,
-                 wind_direction_horizon=None):
+                 wind_direction_horizon=None,
+                 air_flow=None
+    ):
         self.nanoex = nanoex
         self.operation_status = operation_status
         self.airquality = airquality
@@ -20,6 +22,7 @@ class UpdateDeviceRequest:
         self.timer_value = timer_value
         self.operation_token = operation_token
         self.wind_direction_horizon = wind_direction_horizon
+        self.air_flow = air_flow
 
     @classmethod
     def from_dict(cls, data):
@@ -33,7 +36,8 @@ class UpdateDeviceRequest:
             wind_direction=data.get('wind_direction'),
             timer_value=data.get('timer_value'),
             operation_token=data.get('operation_token'),
-            wind_direction_horizon=data.get('wind_direction_horizon')
+            wind_direction_horizon=data.get('wind_direction_horizon'),
+            air_flow=data.get('air_flow')
         )
 
     def to_dict(self):
@@ -47,5 +51,6 @@ class UpdateDeviceRequest:
             'wind_direction': self.wind_direction,
             'timer_value': self.timer_value,
             'operation_token': self.operation_token,
-            'wind_direction_horizon': self.wind_direction_horizon
+            'wind_direction_horizon': self.wind_direction_horizon,
+            'air_flow': self.air_flow,
         }
