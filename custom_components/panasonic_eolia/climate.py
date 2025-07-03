@@ -19,7 +19,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
-from custom_components.panasonic_eolia.eolia.exceptions import DeviceLockedByAnotherControllerException
+from custom_components.panasonic_eolia.eolia.exceptions import (
+    DeviceLockedByAnotherControllerException,
+)
 from custom_components.panasonic_eolia.eolia.responses import (
     AirFlow,
     DeviceStatus,
@@ -39,11 +41,45 @@ HVAC_MODE_MAP = {
     "Cooling": HVACMode.COOL,
     "Heating": HVACMode.HEAT,
     "Auto": HVACMode.HEAT_COOL,
-    "Dry": HVACMode.DRY,
-    "Fan": HVACMode.FAN_ONLY,
+    "CoolDehumidifying": HVACMode.DRY,
+    "Blast": HVACMode.FAN_ONLY,
+    "Off": HVACMode.OFF,
 }
 
 HVAC_MODE_MAP_REVERSE = {v: k for k, v in HVAC_MODE_MAP.items()}
+
+# Map fan modes to wind volume/air flow
+FAN_MODE_TO_WIND_VOLUME = {
+    "Low": WindVolume.LOW.value,
+    "Medium": WindVolume.MEDIUM_HIGH.value,
+    "Medium High": WindVolume.MEDIUM_HIGH.value,
+    "High": WindVolume.HIGH.value,
+    "Very High": WindVolume.VERY_HIGH.value,
+    "Auto": WindVolume.AUTO.value,
+}
+
+FAN_MODE_TO_AIR_FLOW = {
+    "Quiet": AirFlow.QUIET.value,
+    "Max": AirFlow.POWERFUL.value,
+}
+
+# Map swing modes to wind direction
+SWING_MODE_TO_WIND_DIRECTION = {
+    "Auto": WindDirection.AUTO.value,
+    "Top": WindDirection.TOP.value,
+    "Middle Top": WindDirection.MIDDLE_TOP.value,
+    "Middle": WindDirection.MIDDLE.value,
+    "Middle Bottom": WindDirection.MIDDLE_BOTTOM.value,
+    "Bottom": WindDirection.BOTTOM.value,
+    "Swing": WindDirection.SWING.value,
+}
+
+# Map preset modes to air flow
+PRESET_MODE_TO_AIR_FLOW = {
+    PRESET_NONE: AirFlow.NOT_SET.value,
+    PRESET_SLEEP: AirFlow.QUIET.value,
+    PRESET_BOOST: AirFlow.POWERFUL.value,
+}
 
 
 async def async_setup_entry(
@@ -172,6 +208,8 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
             return HVACMode.DRY
         elif self._last_device_status.operation_mode == OperationMode.FAN:
             return HVACMode.FAN_ONLY
+        elif self._last_device_status.operation_mode == OperationMode.NANOE:
+            return HVACMode.FAN_ONLY
         else:
             return HVACMode.OFF
 
@@ -285,19 +323,89 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode."""
         _LOGGER.debug(f"Set HVAC mode to {hvac_mode}")
-        if hvac_mode == HVACMode.OFF:
-            self._is_on = False
-        else:
-            self._is_on = True
-            self._hvac_mode = hvac_mode
-        # TODO: Call API to update mode
+
+        try:
+            if hvac_mode == HVACMode.OFF:
+                # Turn off the AC
+                await self._coordinator._async_set_hvac_mode("Off", False)
+            else:
+                # Map the HVAC mode to operation mode
+                operation_mode = HVAC_MODE_MAP_REVERSE.get(hvac_mode)
+                if operation_mode:
+                    await self._coordinator._async_set_hvac_mode(operation_mode, True)
+                else:
+                    _LOGGER.error(f"Unknown HVAC mode: {hvac_mode}")
+                    return
+
+            await self._coordinator.async_request_refresh()
+        except DeviceLockedByAnotherControllerException:
+            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            raise HomeAssistantError(
+                f"{self._appliance.nickname} is being controlled by another device. "
+                "Please wait 2 minutes before trying again."
+            )
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set new fan mode."""
         _LOGGER.debug(f"Set fan mode to {fan_mode}")
-        # TODO: Call API to update fan mode
+
+        try:
+            # Check if it's a special air flow mode
+            if fan_mode in FAN_MODE_TO_AIR_FLOW:
+                air_flow = FAN_MODE_TO_AIR_FLOW[fan_mode]
+                await self._coordinator._async_set_fan_mode(wind_volume=None, air_flow=air_flow)
+            elif fan_mode in FAN_MODE_TO_WIND_VOLUME:
+                wind_volume = FAN_MODE_TO_WIND_VOLUME[fan_mode]
+                # Reset air_flow to not_set when setting wind volume
+                await self._coordinator._async_set_fan_mode(wind_volume=wind_volume, air_flow="not_set")
+            else:
+                _LOGGER.error(f"Unknown fan mode: {fan_mode}")
+                return
+
+            await self._coordinator.async_request_refresh()
+        except DeviceLockedByAnotherControllerException:
+            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            raise HomeAssistantError(
+                f"{self._appliance.nickname} is being controlled by another device. "
+                "Please wait 2 minutes before trying again."
+            )
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Set new swing mode."""
         _LOGGER.debug(f"Set swing mode to {swing_mode}")
-        # TODO: Call API to update swing mode
+
+        try:
+            wind_direction = SWING_MODE_TO_WIND_DIRECTION.get(swing_mode)
+            if wind_direction is not None:
+                await self._coordinator._async_set_swing_mode(wind_direction)
+            else:
+                _LOGGER.error(f"Unknown swing mode: {swing_mode}")
+                return
+
+            await self._coordinator.async_request_refresh()
+        except DeviceLockedByAnotherControllerException:
+            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            raise HomeAssistantError(
+                f"{self._appliance.nickname} is being controlled by another device. "
+                "Please wait 2 minutes before trying again."
+            )
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set new preset mode."""
+        _LOGGER.debug(f"Set preset mode to {preset_mode}")
+
+        try:
+            air_flow = PRESET_MODE_TO_AIR_FLOW.get(preset_mode)
+            if air_flow is not None:
+                await self._coordinator._async_set_preset_mode(air_flow)
+            else:
+                _LOGGER.error(f"Unknown preset mode: {preset_mode}")
+                return
+
+            await self._coordinator.async_request_refresh()
+        except DeviceLockedByAnotherControllerException:
+            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            raise HomeAssistantError(
+                f"{self._appliance.nickname} is being controlled by another device. "
+                "Please wait 2 minutes before trying again."
+            )
