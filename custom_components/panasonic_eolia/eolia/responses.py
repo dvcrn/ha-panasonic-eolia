@@ -227,10 +227,10 @@ class DeviceStatus:
             nanoex=self.nanoex,
             operation_status=self.operation_status,
             airquality=self.airquality,
-            wind_volume=self.wind_volume,
+            wind_volume=self._enum_to_value(self.wind_volume),
             temperature=str(self.temperature) if self.temperature is not None else None,
             operation_mode=self._enum_to_value(self.operation_mode),
-            wind_direction=self.wind_direction,
+            wind_direction=self._enum_to_value(self.wind_direction),
             timer_value=str(self.timer_value) if self.timer_value is not None else None,
             operation_token=self.operation_token,
             wind_direction_horizon=self._enum_to_value(self.wind_direction_horizon)

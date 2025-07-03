@@ -86,6 +86,8 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     _last_device_status: DeviceStatus
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
 
+    _coordinator: EolliaApplianceDataCoordinator
+
     def __init__(self, coordinator: EolliaApplianceDataCoordinator, appliance: Appliance, eolia: PanasonicEolia) -> None:
         """Initialize the climate device."""
         _LOGGER.debug(f"Climate entity init called with appliance: {appliance.nickname}")
@@ -97,6 +99,8 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
         self._eolia = eolia
         self._appliance = appliance
+
+        self._coordinator = coordinator
 
 
         # State variables
@@ -267,6 +271,7 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is not None:
             self._target_temperature = temperature
             _LOGGER.debug(f"Set temperature to {temperature}")
+            await self._coordinator._async_set_temperature(temperature)
             # TODO: Call API to update temperature
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:

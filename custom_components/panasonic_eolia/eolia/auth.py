@@ -18,6 +18,7 @@ from typing import List, Optional
 import httpx
 
 from .device import Appliance
+from .exceptions import DeviceLockedByAnotherControllerException
 from .requests import UpdateDeviceRequest
 from .responses import (
     DevicesResponse,
