@@ -43,7 +43,7 @@ HVAC_MODE_MAP = {
     "Auto": HVACMode.HEAT_COOL,
     "CoolDehumidifying": HVACMode.DRY,
     "Blast": HVACMode.FAN_ONLY,
-    "Off": HVACMode.OFF,
+    "Stop": HVACMode.OFF,
 }
 
 HVAC_MODE_MAP_REVERSE = {v: k for k, v in HVAC_MODE_MAP.items()}
@@ -327,7 +327,7 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         try:
             if hvac_mode == HVACMode.OFF:
                 # Turn off the AC
-                await self._coordinator._async_set_hvac_mode("Off", False)
+                await self._coordinator._async_set_off()
             else:
                 # Map the HVAC mode to operation mode
                 operation_mode = HVAC_MODE_MAP_REVERSE.get(hvac_mode)

@@ -10,7 +10,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
-from custom_components.panasonic_eolia.eolia.exceptions import DeviceLockedByAnotherControllerException
+from custom_components.panasonic_eolia.eolia.exceptions import (
+    DeviceLockedByAnotherControllerException,
+)
 from custom_components.panasonic_eolia.eolia.requests import UpdateDeviceRequest
 from custom_components.panasonic_eolia.eolia.responses import DeviceStatus
 
@@ -65,7 +67,7 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         """Check if the current operation token is still valid (within TTL)."""
         if not self._operation_token or not self._token_timestamp:
             return False
-        
+
         elapsed = datetime.now() - self._token_timestamp
         return elapsed < self._token_ttl
 
@@ -101,7 +103,7 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
                     _LOGGER.debug(f"Received operation token: {status.operation_token}")
                     self._operation_token = status.operation_token
                     self._token_timestamp = datetime.now()
-                    
+
                 return status
             except DeviceLockedByAnotherControllerException:
                 _LOGGER.warning(f"Device {self._appliance.nickname} is locked by another controller. Please wait 2 minutes.")
@@ -120,33 +122,46 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
 
     async def _async_set_temperature(self, temperature: int):
         _LOGGER.debug(f"[DataCoordinator] async_set_temperature for {self._appliance.nickname}")
-        
+
         # Ensure we have a valid status before trying to update
         if self._appliance_status is None:
             _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
             if self._appliance.appliance_id:
                 self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
-            
+
             if self._appliance_status is None:
                 _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
                 return None
-        
+
         update_request = self._appliance_status.to_update_request()
         update_request.temperature = temperature
         return await self.submit_update_request(update_request)
 
-    async def _async_set_hvac_mode(self, operation_mode: str, operation_status: bool):
-        _LOGGER.debug(f"[DataCoordinator] async_set_hvac_mode for {self._appliance.nickname}: mode={operation_mode}, status={operation_status}")
-        
+    async def _async_set_off(self):
+        _LOGGER.debug(f"[DataCoordinator] async_set_off for {self._appliance.nickname}")
+
         if self._appliance_status is None:
             _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
             if self._appliance.appliance_id:
                 self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
-            
+
+        update_request = self._appliance_status.to_update_request()
+        update_request.operation_status = False
+        return await self.submit_update_request(update_request)
+
+
+    async def _async_set_hvac_mode(self, operation_mode: str, operation_status: bool):
+        _LOGGER.debug(f"[DataCoordinator] async_set_hvac_mode for {self._appliance.nickname}: mode={operation_mode}, status={operation_status}")
+
+        if self._appliance_status is None:
+            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            if self._appliance.appliance_id:
+                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+
             if self._appliance_status is None:
                 _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
                 return None
-        
+
         update_request = self._appliance_status.to_update_request()
         update_request.operation_mode = operation_mode
         update_request.operation_status = operation_status
@@ -154,16 +169,16 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
 
     async def _async_set_fan_mode(self, wind_volume: int = None, air_flow: str = None):
         _LOGGER.debug(f"[DataCoordinator] async_set_fan_mode for {self._appliance.nickname}: wind_volume={wind_volume}, air_flow={air_flow}")
-        
+
         if self._appliance_status is None:
             _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
             if self._appliance.appliance_id:
                 self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
-            
+
             if self._appliance_status is None:
                 _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
                 return None
-        
+
         update_request = self._appliance_status.to_update_request()
         if wind_volume is not None:
             update_request.wind_volume = wind_volume
@@ -173,32 +188,32 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
 
     async def _async_set_swing_mode(self, wind_direction: int):
         _LOGGER.debug(f"[DataCoordinator] async_set_swing_mode for {self._appliance.nickname}: wind_direction={wind_direction}")
-        
+
         if self._appliance_status is None:
             _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
             if self._appliance.appliance_id:
                 self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
-            
+
             if self._appliance_status is None:
                 _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
                 return None
-        
+
         update_request = self._appliance_status.to_update_request()
         update_request.wind_direction = wind_direction
         return await self.submit_update_request(update_request)
 
     async def _async_set_preset_mode(self, air_flow: str):
         _LOGGER.debug(f"[DataCoordinator] async_set_preset_mode for {self._appliance.nickname}: air_flow={air_flow}")
-        
+
         if self._appliance_status is None:
             _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
             if self._appliance.appliance_id:
                 self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
-            
+
             if self._appliance_status is None:
                 _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
                 return None
-        
+
         update_request = self._appliance_status.to_update_request()
         update_request.air_flow = air_flow
         # When setting preset, we should reset wind_volume to auto
