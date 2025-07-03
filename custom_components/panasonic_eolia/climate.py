@@ -13,11 +13,13 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
+from custom_components.panasonic_eolia.eolia.exceptions import DeviceLockedByAnotherControllerException
 from custom_components.panasonic_eolia.eolia.responses import (
     AirFlow,
     DeviceStatus,
@@ -269,10 +271,16 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is not None:
-            self._target_temperature = temperature
             _LOGGER.debug(f"Set temperature to {temperature}")
-            await self._coordinator._async_set_temperature(temperature)
-            # TODO: Call API to update temperature
+            try:
+                await self._coordinator._async_set_temperature(temperature)
+                await self._coordinator.async_request_refresh()
+            except DeviceLockedByAnotherControllerException:
+                _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+                raise HomeAssistantError(
+                    f"{self._appliance.nickname} is being controlled by another device. "
+                    "Please wait 2 minutes before trying again."
+                )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new HVAC mode."""

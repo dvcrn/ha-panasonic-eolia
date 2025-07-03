@@ -543,6 +543,17 @@ class PanasonicEolia:
         if response.status_code == 200:
             _LOGGER.debug("Successfully updated device status")
             return DeviceStatus.from_dict(response.json())
+        elif response.status_code == 409:
+            # Check if it's the specific "device locked" error
+            try:
+                error_data = response.json()
+                if error_data.get("code") == "E-21291-01718":
+                    _LOGGER.debug(f"Device locked by another controller: {response.text}")
+                    raise DeviceLockedByAnotherControllerException()
+            except ValueError:
+                pass  # Not JSON response
+            _LOGGER.debug(f"Conflict error: {response.status_code} - {response.text}")
+            return None
         else:
             _LOGGER.debug(f"Failed to update device status: {response.status_code} - {response.text}")
             return None

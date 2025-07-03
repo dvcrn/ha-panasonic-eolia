@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.panasonic_eolia.eolia.auth import PanasonicEolia
 from custom_components.panasonic_eolia.eolia.device import Appliance
+from custom_components.panasonic_eolia.eolia.exceptions import DeviceLockedByAnotherControllerException
 from custom_components.panasonic_eolia.eolia.requests import UpdateDeviceRequest
 from custom_components.panasonic_eolia.eolia.responses import DeviceStatus
 
@@ -92,13 +93,23 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
                 _LOGGER.debug("No valid operation token available or token expired")
                 update_request.operation_token = None
 
-            status = await self._eolia.update_device_status(self._appliance.appliance_id, update_request)
+            try:
+                status = await self._eolia.update_device_status(self._appliance.appliance_id, update_request)
 
-            # if we receive a token back, we store it with timestamp
-            if status and status.operation_token:
-                _LOGGER.debug(f"Received operation token: {status.operation_token}")
-                self._operation_token = status.operation_token
-                self._token_timestamp = datetime.now()
+                # if we receive a token back, we store it with timestamp
+                if status and status.operation_token:
+                    _LOGGER.debug(f"Received operation token: {status.operation_token}")
+                    self._operation_token = status.operation_token
+                    self._token_timestamp = datetime.now()
+                    
+                return status
+            except DeviceLockedByAnotherControllerException:
+                _LOGGER.warning(f"Device {self._appliance.nickname} is locked by another controller. Please wait 2 minutes.")
+                # Clear our token since it's invalid
+                self._operation_token = None
+                self._token_timestamp = None
+                # Re-raise the exception to be handled by the climate entity
+                raise
 
     async def _async_update_data(self):
         _LOGGER.debug(f"[DataCoordinator] async_update for {self._appliance.nickname}")
