@@ -39,6 +39,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     """Set up Panasonic Eolia from a config entry."""
     _LOGGER.debug("async_setup_entry called")
 
+    _LOGGER.info(f"entry -- {entry}")
+    _LOGGER.info(f"hass -- {hass}")
+
+    _LOGGER.info(f"entry data -- {entry.data}")
+    auth_method = entry.data['auth_method']
+    access_token = entry.data['access_token']
+    refresh_token = entry.data['refresh_token']
+
+
     # Store client and coordinator in hass.data for platform access
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {}
@@ -46,19 +55,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     session = get_async_client(hass)
     _LOGGER.info("Got aiohttp session from Home Assistant")
 
-    access_token = os.environ.get('PANASONIC_ACCESS_TOKEN', "")
-    refresh_token = os.environ.get('PANASONIC_REFRESH_TOKEN', "")
-    password = os.environ.get('PANASONIC_PASSWORD', "")
-    username_hex = os.environ.get('PANASONIC_USERNAME', "")
+    if access_token != "" and refresh_token != "":
+        auth = PanasonicEolia(access_token=access_token, refresh_token=refresh_token, session=session)
+    else:
+        raise ValueError(f"Invalid auth method: {auth_method}")
 
-    username = bytes.fromhex(username_hex).decode('utf-8')
-    _LOGGER.info(f"Decoded username: {username}")
-    _LOGGER.info(f"Using password from: {'environment variable' if 'PANASONIC_PASSWORD' in os.environ else 'hardcoded value'}")
-
-    auth = PanasonicEolia(access_token=access_token, refresh_token=refresh_token, session=session)
-    # auth = PanasonicEolia(username, password, session=session)
-    # TODO: fix proper authentication with 2fa
-    # if await auth.authenticate():
+    # todo: token refresh using refresh token
 
     devices = await auth.get_devices()
 

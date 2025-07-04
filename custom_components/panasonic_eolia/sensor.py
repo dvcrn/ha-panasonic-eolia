@@ -32,6 +32,7 @@ async def async_setup_entry(
     entities = []
     for device in entry.runtime_data.appliances:
         coordinator = EolliaApplianceDataCoordinator(hass, entry.runtime_data.eolia, device)
+        _LOGGER.info(f"creating temperature sensor for {device.nickname}")
 
         entity = PanasonicEoliaTemperatureSensor(
             coordinator=coordinator,

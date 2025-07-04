@@ -94,6 +94,7 @@ async def async_setup_entry(
 
     entities = []
     for device in entry.runtime_data.appliances:
+        _LOGGER.info(f"discovered aircon {device.nickname}")
         coordinator = EolliaApplianceDataCoordinator(hass, entry.runtime_data.eolia, device)
 
         entity = PanasonicEoliaClimate(coordinator=coordinator, appliance=device, eolia=entry.runtime_data.eolia)
