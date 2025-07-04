@@ -5,7 +5,7 @@
     "@dvcrn"
   ],
   "dependencies": [],
-  "documentation": "https://github.com/dvcrn/panasonic-aircon",
+  "documentation": "https://github.com/dvcrn/ha-panasonic-eolia",
   "iot_class": "cloud_polling",
   "requirements": [
     "requests>=2.31.0",
