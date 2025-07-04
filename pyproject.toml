@@ -9,4 +9,5 @@ dependencies = []
 [dependency-groups]
 dev = [
     "homeassistant>=2023.7.3",
+    "httpx>=0.28.1"
 ]

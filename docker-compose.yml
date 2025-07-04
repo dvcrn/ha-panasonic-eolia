@@ -13,6 +13,6 @@ services:
       - PANASONIC_REFRESH_TOKEN
     volumes:
       - /tmp/config:/config
-      - /Users/david/src/panasonic-aircon/custom_components:/config/custom_components
+      - ./panasonic-aircon/custom_components:/config/custom_components
     ports:
       - "8123:8123"

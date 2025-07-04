@@ -1,12 +1,19 @@
 {
   "domain": "panasonic_eolia",
   "name": "Panasonic Eolia",
-  "codeowners": [],
+  "codeowners": [
+    "@dvcrn"
+  ],
   "dependencies": [],
-  "documentation": "https://github.com/yourusername/panasonic-aircon",
+  "documentation": "https://github.com/dvcrn/panasonic-aircon",
   "iot_class": "cloud_polling",
-  "requirements": ["requests>=2.31.0"],
-  "version": "0.1.0",
-  "platforms": ["climate"],
+  "requirements": [
+    "requests>=2.31.0",
+    "httpx>=0.28.1"
+  ],
+  "version": "1.0.0",
+  "platforms": [
+    "climate"
+  ],
   "config_flow": true
 }
