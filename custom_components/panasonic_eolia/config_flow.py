@@ -112,9 +112,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if devices is not None:
                     _LOGGER.info("Token authentication successful, found %d devices", len(devices))
 
+                    access_token = eolia.access_token or user_input["access_token"]
+                    refresh_token = eolia.refresh_token or user_input["refresh_token"]
+
                     # Create unique ID based on the first part of access token
                     # (tokens don't have username, so we use part of token as ID)
-                    unique_id = f"token_{user_input['access_token'][:16]}"
+                    unique_id = f"token_{access_token[:16]}"
                     await self.async_set_unique_id(unique_id)
                     self._abort_if_unique_id_configured()
 
@@ -122,8 +125,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         title="Panasonic Eolia (Token Auth)",
                         data={
                             "auth_method": "token",
-                            "access_token": user_input["access_token"],
-                            "refresh_token": user_input["refresh_token"],
+                            "access_token": access_token,
+                            "refresh_token": refresh_token,
                         },
                     )
                 else:

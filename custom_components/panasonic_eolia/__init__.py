@@ -56,32 +56,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     session = get_async_client(hass)
     _LOGGER.info("Got aiohttp session from Home Assistant")
 
-    if access_token != "" and refresh_token != "":
-        auth = PanasonicEolia(access_token=access_token, refresh_token=refresh_token, session=session)
-    else:
-        raise ValueError(f"Invalid auth method: {auth_method}")
-
-    # todo: token refresh using refresh token
-
-    userinfo = await auth.get_userinfo()
-    if userinfo is None:
-        _LOGGER.info("Access token invalid, attempting refresh")
-        refreshed = await auth.refresh_access_token()
-        if not refreshed:
-            raise ConfigEntryAuthFailed("Authentication failed when fetching userinfo")
-
+    def _store_tokens(access_token: str, refresh_token: str) -> None:
+        if not access_token or not refresh_token:
+            return
+        if (
+            access_token == entry.data.get("access_token")
+            and refresh_token == entry.data.get("refresh_token")
+        ):
+            return
         hass.config_entries.async_update_entry(
             entry,
             data={
                 **entry.data,
-                "access_token": auth.access_token,
-                "refresh_token": auth.refresh_token,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
             },
         )
 
-        userinfo = await auth.get_userinfo()
-        if userinfo is None:
-            raise ConfigEntryAuthFailed("Authentication failed after token refresh")
+    if access_token != "" and refresh_token != "":
+        auth = PanasonicEolia(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            session=session,
+            token_update_callback=_store_tokens,
+        )
+    else:
+        raise ValueError(f"Invalid auth method: {auth_method}")
+
+    userinfo = await auth.get_userinfo()
+    if userinfo is None:
+        raise ConfigEntryAuthFailed("Authentication failed when fetching userinfo")
 
     devices = await auth.get_devices()
 

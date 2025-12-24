@@ -13,7 +13,7 @@ import re
 import secrets
 import urllib.parse
 from datetime import datetime
-from typing import List, Optional
+from typing import Callable, Dict, List, Optional
 
 import httpx
 
@@ -33,7 +33,15 @@ _LOGGER.setLevel(logging.DEBUG)
 
 
 class PanasonicEolia:
-    def __init__(self, username=None, password=None, access_token=None, refresh_token=None, session: Optional[httpx.AsyncClient] = None):
+    def __init__(
+        self,
+        username=None,
+        password=None,
+        access_token=None,
+        refresh_token=None,
+        session: Optional[httpx.AsyncClient] = None,
+        token_update_callback: Optional[Callable[[str, str], None]] = None,
+    ):
         if session:
             self.session = session
         else:
@@ -59,6 +67,8 @@ class PanasonicEolia:
         else:
             raise ValueError("Must provide either username/password OR access_token/refresh_token")
 
+        self._token_update_callback = token_update_callback
+
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1'
         })
@@ -78,6 +88,33 @@ class PanasonicEolia:
 
         # Generate state
         self.state = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
+
+    def _persist_tokens(self) -> None:
+        if not self._token_update_callback:
+            return
+        try:
+            self._token_update_callback(self.access_token, self.refresh_token)
+        except Exception as exc:
+            _LOGGER.warning("Failed to persist refreshed tokens: %s", exc)
+
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        retry_on_unauthorized: bool = True,
+        **kwargs,
+    ) -> httpx.Response:
+        response = await self.session.request(method, url, headers=headers, **kwargs)
+        if retry_on_unauthorized and response.status_code in (401, 403):
+            _LOGGER.info("Request unauthorized, attempting token refresh")
+            refreshed = await self.refresh_access_token()
+            if refreshed:
+                refreshed_headers = dict(headers or {})
+                if self.access_token:
+                    refreshed_headers["Authorization"] = f"Bearer {self.access_token}"
+                response = await self.session.request(method, url, headers=refreshed_headers, **kwargs)
+        return response
 
     async def step1_authorize(self):
         """Step 1: Initial authorization request"""
@@ -422,7 +459,8 @@ class PanasonicEolia:
             'Auth0-Client': 'eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsIklPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ',
         }
 
-        response = await self.session.get(
+        response = await self._request(
+            'GET',
             'https://auth.digital.panasonic.com/userinfo',
             headers=headers
         )
@@ -465,6 +503,7 @@ class PanasonicEolia:
         self.id_token = token_response.get('id_token', getattr(self, 'id_token', None))
         self.expires_in = token_response.get('expires_in', getattr(self, 'expires_in', None))
         _LOGGER.debug("Successfully refreshed access token")
+        self._persist_tokens()
         return True
 
     async def get_devices(self) -> List[Appliance]:
@@ -484,7 +523,8 @@ class PanasonicEolia:
             'User-Agent': '%E3%82%A8%E3%82%AA%E3%83%AA%E3%82%A2/81 CFNetwork/3826.600.31 Darwin/24.6.0'
         }
 
-        response = await self.session.get(
+        response = await self._request(
+            'GET',
             'https://app.rac.apws.panasonic.com/eolia/v6/devices',
             headers=headers
         )
@@ -513,7 +553,8 @@ class PanasonicEolia:
             'User-Agent': '%E3%82%A8%E3%82%AA%E3%83%AA%E3%82%A2/81 CFNetwork/3826.600.31 Darwin/24.6.0'
         }
 
-        response = await self.session.get(
+        response = await self._request(
+            'GET',
             f'https://app.rac.apws.panasonic.com/eolia/v6/products/{product_code}/functions',
             headers=headers
         )
@@ -544,7 +585,8 @@ class PanasonicEolia:
         # URL encode the device_id
         encoded_device_id = urllib.parse.quote(device_id, safe='')
 
-        response = await self.session.get(
+        response = await self._request(
+            'GET',
             f'https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status',
             headers=headers
         )
@@ -592,7 +634,8 @@ class PanasonicEolia:
 
         _LOGGER.debug(f"Full URL: https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status")
 
-        response = await self.session.put(
+        response = await self._request(
+            'PUT',
             f'https://app.rac.apws.panasonic.com/eolia/v6/devices/{encoded_device_id}/status',
             headers=headers,
             json=payload
