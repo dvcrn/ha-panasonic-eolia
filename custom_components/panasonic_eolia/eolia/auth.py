@@ -409,6 +409,30 @@ class PanasonicEolia:
             _LOGGER.debug(f"Authentication failed: {e}")
             return False
 
+    async def get_userinfo(self):
+        """Fetch Auth0 userinfo for the current access token."""
+        if not self.access_token:
+            raise ValueError("access_token is required to fetch userinfo")
+
+        _LOGGER.debug("Fetching userinfo...")
+
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Accept': '*/*',
+            'Auth0-Client': 'eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsIklPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ',
+        }
+
+        response = await self.session.get(
+            'https://auth.digital.panasonic.com/userinfo',
+            headers=headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+
+        _LOGGER.debug(f"Failed to fetch userinfo: {response.status_code} - {response.text}")
+        return None
+
     async def get_devices(self) -> List[Appliance]:
         """Test the authentication by fetching devices"""
         _LOGGER.debug("\nFetching devices...")

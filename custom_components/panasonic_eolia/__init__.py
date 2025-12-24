@@ -8,6 +8,7 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.httpx_client import get_async_client
@@ -61,6 +62,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
         raise ValueError(f"Invalid auth method: {auth_method}")
 
     # todo: token refresh using refresh token
+
+    userinfo = await auth.get_userinfo()
+    if userinfo is None:
+        raise ConfigEntryAuthFailed("Authentication failed when fetching userinfo")
 
     devices = await auth.get_devices()
 
