@@ -21,10 +21,12 @@ _LOGGER.setLevel(logging.DEBUG)
 
 type PanasonicEoliaConfigEntry = ConfigEntry[EoliaData]
 
+
 @dataclass
 class EoliaData:
     eolia: PanasonicEolia
     appliances: list[Appliance]
+
 
 @dataclass
 class EoliaApplianceData:
@@ -34,6 +36,7 @@ class EoliaApplianceData:
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
+
 
 class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
     """Class to manage fetching data."""
@@ -47,7 +50,9 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
     _token_timestamp: datetime
     _token_ttl: timedelta = timedelta(minutes=2)
 
-    def __init__(self, hass: HomeAssistant, eolia: PanasonicEolia, appliance: Appliance) -> None:
+    def __init__(
+        self, hass: HomeAssistant, eolia: PanasonicEolia, appliance: Appliance
+    ) -> None:
         """Initialize coordinator."""
 
         self._eolia = eolia
@@ -82,10 +87,14 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         """
         _LOGGER.debug(f"[DataCoordinator] async_setup for {self._appliance.nickname}")
         if self._appliance.appliance_id:
-            self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+            self._appliance_status = await self._eolia.get_device_status(
+                self._appliance.appliance_id
+            )
 
     async def submit_update_request(self, update_request: UpdateDeviceRequest):
-        _LOGGER.debug(f"[DataCoordinator] submit_update_request for {self._appliance.nickname}")
+        _LOGGER.debug(
+            f"[DataCoordinator] submit_update_request for {self._appliance.nickname}"
+        )
         if self._appliance.appliance_id:
             # check if we have a valid token within TTL
             if self._is_token_valid():
@@ -96,7 +105,9 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
                 update_request.operation_token = None
 
             try:
-                status = await self._eolia.update_device_status(self._appliance.appliance_id, update_request)
+                status = await self._eolia.update_device_status(
+                    self._appliance.appliance_id, update_request
+                )
 
                 # if we receive a token back, we store it with timestamp
                 if status and status.operation_token:
@@ -106,7 +117,9 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
 
                 return status
             except DeviceLockedByAnotherControllerException:
-                _LOGGER.warning(f"Device {self._appliance.nickname} is locked by another controller. Please wait 2 minutes.")
+                _LOGGER.warning(
+                    f"Device {self._appliance.nickname} is locked by another controller. Please wait 2 minutes."
+                )
                 # Clear our token since it's invalid
                 self._operation_token = None
                 self._token_timestamp = None
@@ -116,21 +129,31 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
     async def _async_update_data(self):
         _LOGGER.debug(f"[DataCoordinator] async_update for {self._appliance.nickname}")
         if self._appliance.appliance_id:
-            self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+            self._appliance_status = await self._eolia.get_device_status(
+                self._appliance.appliance_id
+            )
 
         return EoliaApplianceData(self._appliance, self._appliance_status)
 
     async def _async_set_temperature(self, temperature: int):
-        _LOGGER.debug(f"[DataCoordinator] async_set_temperature for {self._appliance.nickname}")
+        _LOGGER.debug(
+            f"[DataCoordinator] async_set_temperature for {self._appliance.nickname}"
+        )
 
         # Ensure we have a valid status before trying to update
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
             if self._appliance_status is None:
-                _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
+                _LOGGER.error(
+                    f"[DataCoordinator] Failed to get status for {self._appliance.nickname}"
+                )
                 return None
 
         update_request = self._appliance_status.to_update_request()
@@ -141,25 +164,36 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         _LOGGER.debug(f"[DataCoordinator] async_set_off for {self._appliance.nickname}")
 
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
         update_request = self._appliance_status.to_update_request()
         update_request.operation_status = False
         return await self.submit_update_request(update_request)
 
-
     async def _async_set_hvac_mode(self, operation_mode: str, operation_status: bool):
-        _LOGGER.debug(f"[DataCoordinator] async_set_hvac_mode for {self._appliance.nickname}: mode={operation_mode}, status={operation_status}")
+        _LOGGER.debug(
+            f"[DataCoordinator] async_set_hvac_mode for {self._appliance.nickname}: mode={operation_mode}, status={operation_status}"
+        )
 
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
             if self._appliance_status is None:
-                _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
+                _LOGGER.error(
+                    f"[DataCoordinator] Failed to get status for {self._appliance.nickname}"
+                )
                 return None
 
         update_request = self._appliance_status.to_update_request()
@@ -168,15 +202,23 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         return await self.submit_update_request(update_request)
 
     async def _async_set_fan_mode(self, wind_volume: int = None, air_flow: str = None):
-        _LOGGER.debug(f"[DataCoordinator] async_set_fan_mode for {self._appliance.nickname}: wind_volume={wind_volume}, air_flow={air_flow}")
+        _LOGGER.debug(
+            f"[DataCoordinator] async_set_fan_mode for {self._appliance.nickname}: wind_volume={wind_volume}, air_flow={air_flow}"
+        )
 
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
             if self._appliance_status is None:
-                _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
+                _LOGGER.error(
+                    f"[DataCoordinator] Failed to get status for {self._appliance.nickname}"
+                )
                 return None
 
         update_request = self._appliance_status.to_update_request()
@@ -187,15 +229,23 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         return await self.submit_update_request(update_request)
 
     async def _async_set_swing_mode(self, wind_direction: int):
-        _LOGGER.debug(f"[DataCoordinator] async_set_swing_mode for {self._appliance.nickname}: wind_direction={wind_direction}")
+        _LOGGER.debug(
+            f"[DataCoordinator] async_set_swing_mode for {self._appliance.nickname}: wind_direction={wind_direction}"
+        )
 
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
             if self._appliance_status is None:
-                _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
+                _LOGGER.error(
+                    f"[DataCoordinator] Failed to get status for {self._appliance.nickname}"
+                )
                 return None
 
         update_request = self._appliance_status.to_update_request()
@@ -203,15 +253,23 @@ class EolliaApplianceDataCoordinator(DataUpdateCoordinator[EoliaApplianceData]):
         return await self.submit_update_request(update_request)
 
     async def _async_set_preset_mode(self, air_flow: str):
-        _LOGGER.debug(f"[DataCoordinator] async_set_preset_mode for {self._appliance.nickname}: air_flow={air_flow}")
+        _LOGGER.debug(
+            f"[DataCoordinator] async_set_preset_mode for {self._appliance.nickname}: air_flow={air_flow}"
+        )
 
         if self._appliance_status is None:
-            _LOGGER.warning(f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status")
+            _LOGGER.warning(
+                f"[DataCoordinator] No status available for {self._appliance.nickname}, fetching current status"
+            )
             if self._appliance.appliance_id:
-                self._appliance_status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                self._appliance_status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
 
             if self._appliance_status is None:
-                _LOGGER.error(f"[DataCoordinator] Failed to get status for {self._appliance.nickname}")
+                _LOGGER.error(
+                    f"[DataCoordinator] Failed to get status for {self._appliance.nickname}"
+                )
                 return None
 
         update_request = self._appliance_status.to_update_request()

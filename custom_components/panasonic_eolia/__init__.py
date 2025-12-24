@@ -1,4 +1,5 @@
 """Example of a custom component exposing a service."""
+
 from __future__ import annotations
 
 import logging
@@ -36,7 +37,10 @@ SCAN_INTERVAL = timedelta(seconds=15)
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 PLATFORMS: list[Platform] = [Platform.CLIMATE, Platform.SENSOR]
 
-async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntry) -> bool:
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: PanasonicEoliaConfigEntry
+) -> bool:
     """Set up Panasonic Eolia from a config entry."""
     _LOGGER.debug("async_setup_entry called")
 
@@ -44,10 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     _LOGGER.info(f"hass -- {hass}")
 
     _LOGGER.info(f"entry data -- {entry.data}")
-    auth_method = entry.data['auth_method']
-    access_token = entry.data['access_token']
-    refresh_token = entry.data['refresh_token']
-
+    auth_method = entry.data["auth_method"]
+    access_token = entry.data["access_token"]
+    refresh_token = entry.data["refresh_token"]
 
     # Store client and coordinator in hass.data for platform access
     hass.data.setdefault(DOMAIN, {})
@@ -59,10 +62,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
     def _store_tokens(access_token: str, refresh_token: str) -> None:
         if not access_token or not refresh_token:
             return
-        if (
-            access_token == entry.data.get("access_token")
-            and refresh_token == entry.data.get("refresh_token")
-        ):
+        if access_token == entry.data.get(
+            "access_token"
+        ) and refresh_token == entry.data.get("refresh_token"):
             return
         hass.config_entries.async_update_entry(
             entry,
@@ -103,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""

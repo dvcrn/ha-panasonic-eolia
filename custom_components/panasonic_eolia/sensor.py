@@ -1,4 +1,5 @@
 """Sensor platform for Panasonic Eolia integration."""
+
 import logging
 
 from homeassistant.components.sensor import (
@@ -24,20 +25,24 @@ _LOGGER.setLevel(logging.DEBUG)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: PanasonicEoliaConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: PanasonicEoliaConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Panasonic Eolia sensor platform."""
-    _LOGGER.debug(f"Sensor async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}")
+    _LOGGER.debug(
+        f"Sensor async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}"
+    )
 
     entities = []
     for device in entry.runtime_data.appliances:
-        coordinator = EolliaApplianceDataCoordinator(hass, entry.runtime_data.eolia, device)
+        coordinator = EolliaApplianceDataCoordinator(
+            hass, entry.runtime_data.eolia, device
+        )
         _LOGGER.info(f"creating temperature sensor for {device.nickname}")
 
         entity = PanasonicEoliaTemperatureSensor(
-            coordinator=coordinator,
-            appliance=device,
-            eolia=entry.runtime_data.eolia
+            coordinator=coordinator, appliance=device, eolia=entry.runtime_data.eolia
         )
         entities.append(entity)
 
@@ -57,9 +62,16 @@ class PanasonicEoliaTemperatureSensor(CoordinatorEntity, SensorEntity):
     _last_device_status: DeviceStatus
     _coordinator: EolliaApplianceDataCoordinator
 
-    def __init__(self, coordinator: EolliaApplianceDataCoordinator, appliance: Appliance, eolia: PanasonicEolia) -> None:
+    def __init__(
+        self,
+        coordinator: EolliaApplianceDataCoordinator,
+        appliance: Appliance,
+        eolia: PanasonicEolia,
+    ) -> None:
         """Initialize the temperature sensor."""
-        _LOGGER.debug(f"Temperature sensor init called with appliance: {appliance.nickname}")
+        _LOGGER.debug(
+            f"Temperature sensor init called with appliance: {appliance.nickname}"
+        )
         super().__init__(coordinator=coordinator)
 
         # Set unique ID and name
@@ -73,7 +85,9 @@ class PanasonicEoliaTemperatureSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        _LOGGER.debug(f"Temperature sensor handle_coordinator_update called for {self._appliance.nickname}")
+        _LOGGER.debug(
+            f"Temperature sensor handle_coordinator_update called for {self._appliance.nickname}"
+        )
         if self.coordinator.data:
             self._last_device_status = self.coordinator.data.status
         self.async_write_ha_state()

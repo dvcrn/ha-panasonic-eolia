@@ -83,21 +83,28 @@ PRESET_MODE_TO_AIR_FLOW = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: PanasonicEoliaConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant,
+    entry: PanasonicEoliaConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Panasonic Eolia climate platform."""
     _LOGGER.debug(dir(entry.runtime_data))
     _LOGGER.debug(entry.runtime_data)
 
-    _LOGGER.debug(f"Climate async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}")
-
+    _LOGGER.debug(
+        f"Climate async_setup_entry called, num devices: {len(entry.runtime_data.appliances)}"
+    )
 
     entities = []
     for device in entry.runtime_data.appliances:
         _LOGGER.info(f"discovered aircon {device.nickname}")
-        coordinator = EolliaApplianceDataCoordinator(hass, entry.runtime_data.eolia, device)
+        coordinator = EolliaApplianceDataCoordinator(
+            hass, entry.runtime_data.eolia, device
+        )
 
-        entity = PanasonicEoliaClimate(coordinator=coordinator, appliance=device, eolia=entry.runtime_data.eolia)
+        entity = PanasonicEoliaClimate(
+            coordinator=coordinator, appliance=device, eolia=entry.runtime_data.eolia
+        )
         await entity.query_device_state()
         entities.append(entity)
 
@@ -127,9 +134,16 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
     _coordinator: EolliaApplianceDataCoordinator
 
-    def __init__(self, coordinator: EolliaApplianceDataCoordinator, appliance: Appliance, eolia: PanasonicEolia) -> None:
+    def __init__(
+        self,
+        coordinator: EolliaApplianceDataCoordinator,
+        appliance: Appliance,
+        eolia: PanasonicEolia,
+    ) -> None:
         """Initialize the climate device."""
-        _LOGGER.debug(f"Climate entity init called with appliance: {appliance.nickname}")
+        _LOGGER.debug(
+            f"Climate entity init called with appliance: {appliance.nickname}"
+        )
         super().__init__(coordinator=coordinator)
 
         # Temporary hardcoded values
@@ -141,7 +155,6 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
         self._coordinator = coordinator
 
-
         # State variables
         # self._current_temperature = 25.0
         # self._target_temperature = 22.0
@@ -151,7 +164,9 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        _LOGGER.debug(f"handle_coordinator_update called with appliance: {self._appliance.nickname}")
+        _LOGGER.debug(
+            f"handle_coordinator_update called with appliance: {self._appliance.nickname}"
+        )
         status = self.coordinator.data.status
         # appliance =self.coordinator.data["appliance"]
 
@@ -177,13 +192,18 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return self.coordinator.last_update_success and self._last_device_status is not None
+        return (
+            self.coordinator.last_update_success
+            and self._last_device_status is not None
+        )
 
     async def query_device_state(self):
         """Query the device state."""
         if self._appliance.appliance_id is not None:
             try:
-                status = await self._eolia.get_device_status(self._appliance.appliance_id)
+                status = await self._eolia.get_device_status(
+                    self._appliance.appliance_id
+                )
                 _LOGGER.debug(f"Device status: {status}")
                 _LOGGER.debug("Device status keys and values:")
                 for key, value in vars(status).items():
@@ -195,8 +215,10 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:
         """Return current HVAC mode."""
-        _LOGGER.debug(f"[{self._appliance.nickname}] hvac_mode() == {self._last_device_status.operation_mode}")
-        if self._last_device_status.operation_mode  == OperationMode.OFF:
+        _LOGGER.debug(
+            f"[{self._appliance.nickname}] hvac_mode() == {self._last_device_status.operation_mode}"
+        )
+        if self._last_device_status.operation_mode == OperationMode.OFF:
             return HVACMode.OFF
         elif self._last_device_status.operation_mode == OperationMode.COOLING:
             _LOGGER.debug(f"[{self._appliance.nickname}] hvac_mode is COOL")
@@ -240,16 +262,32 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def fan_modes(self) -> list[str]:
         """Return available fan modes."""
-        return ["Auto", "Quiet", "Low", "Medium", "Medium High", "High", "Very High", "Max"]
+        return [
+            "Auto",
+            "Quiet",
+            "Low",
+            "Medium",
+            "Medium High",
+            "High",
+            "Very High",
+            "Max",
+        ]
 
     @property
     def fan_mode(self) -> str:
         """Return current fan mode."""
         _LOGGER.debug(f"[{self._appliance.nickname}] fan_mode()")
-        _LOGGER.debug(f"[{self._appliance.nickname}] current wind_volume {self._last_device_status.wind_volume}")
-        _LOGGER.debug(f"[{self._appliance.nickname}] current air_flow {self._last_device_status.air_flow}")
+        _LOGGER.debug(
+            f"[{self._appliance.nickname}] current wind_volume {self._last_device_status.wind_volume}"
+        )
+        _LOGGER.debug(
+            f"[{self._appliance.nickname}] current air_flow {self._last_device_status.air_flow}"
+        )
 
-        if self._last_device_status.wind_volume == WindVolume.LOW or self._last_device_status.wind_volume == WindVolume.MEDIUM:
+        if (
+            self._last_device_status.wind_volume == WindVolume.LOW
+            or self._last_device_status.wind_volume == WindVolume.MEDIUM
+        ):
             return "Low"
         elif self._last_device_status.wind_volume == WindVolume.MEDIUM_HIGH:
             return "Medium"
@@ -268,13 +306,24 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
     @property
     def swing_modes(self) -> list[str]:
         """Return available swing modes."""
-        return ["Auto", "Top", "Middle Top", "Middle", "Middle Bottom", "Bottom", "Auto", "Swing"]
+        return [
+            "Auto",
+            "Top",
+            "Middle Top",
+            "Middle",
+            "Middle Bottom",
+            "Bottom",
+            "Auto",
+            "Swing",
+        ]
 
     @property
     def swing_mode(self) -> str:
         """Return current swing mode."""
         _LOGGER.debug(f"[{self._appliance.nickname}] swing_modes()")
-        _LOGGER.debug(f"[{self._appliance.nickname}] current swing_mode {self._last_device_status.wind_direction}")
+        _LOGGER.debug(
+            f"[{self._appliance.nickname}] current swing_mode {self._last_device_status.wind_direction}"
+        )
         if self._last_device_status.wind_direction == WindDirection.AUTO:
             return "Auto"
         if self._last_device_status.wind_direction == WindDirection.TOP:
@@ -292,7 +341,6 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         else:
             return "Auto"
 
-
     @property
     def preset_modes(self) -> list[str]:
         return [PRESET_NONE, PRESET_SLEEP, PRESET_BOOST]
@@ -306,7 +354,6 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
         else:
             return PRESET_NONE
 
-
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is not None:
@@ -315,7 +362,9 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
                 await self._coordinator._async_set_temperature(temperature)
                 await self._coordinator.async_request_refresh()
             except DeviceLockedByAnotherControllerException:
-                _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+                _LOGGER.error(
+                    f"Cannot change {self._appliance.nickname} - it's being controlled by another device"
+                )
                 raise HomeAssistantError(
                     f"{self._appliance.nickname} is being controlled by another device. "
                     "Please wait 2 minutes before trying again."
@@ -340,7 +389,9 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
             await self._coordinator.async_request_refresh()
         except DeviceLockedByAnotherControllerException:
-            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            _LOGGER.error(
+                f"Cannot change {self._appliance.nickname} - it's being controlled by another device"
+            )
             raise HomeAssistantError(
                 f"{self._appliance.nickname} is being controlled by another device. "
                 "Please wait 2 minutes before trying again."
@@ -354,18 +405,24 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
             # Check if it's a special air flow mode
             if fan_mode in FAN_MODE_TO_AIR_FLOW:
                 air_flow = FAN_MODE_TO_AIR_FLOW[fan_mode]
-                await self._coordinator._async_set_fan_mode(wind_volume=None, air_flow=air_flow)
+                await self._coordinator._async_set_fan_mode(
+                    wind_volume=None, air_flow=air_flow
+                )
             elif fan_mode in FAN_MODE_TO_WIND_VOLUME:
                 wind_volume = FAN_MODE_TO_WIND_VOLUME[fan_mode]
                 # Reset air_flow to not_set when setting wind volume
-                await self._coordinator._async_set_fan_mode(wind_volume=wind_volume, air_flow="not_set")
+                await self._coordinator._async_set_fan_mode(
+                    wind_volume=wind_volume, air_flow="not_set"
+                )
             else:
                 _LOGGER.error(f"Unknown fan mode: {fan_mode}")
                 return
 
             await self._coordinator.async_request_refresh()
         except DeviceLockedByAnotherControllerException:
-            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            _LOGGER.error(
+                f"Cannot change {self._appliance.nickname} - it's being controlled by another device"
+            )
             raise HomeAssistantError(
                 f"{self._appliance.nickname} is being controlled by another device. "
                 "Please wait 2 minutes before trying again."
@@ -385,7 +442,9 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
             await self._coordinator.async_request_refresh()
         except DeviceLockedByAnotherControllerException:
-            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            _LOGGER.error(
+                f"Cannot change {self._appliance.nickname} - it's being controlled by another device"
+            )
             raise HomeAssistantError(
                 f"{self._appliance.nickname} is being controlled by another device. "
                 "Please wait 2 minutes before trying again."
@@ -405,7 +464,9 @@ class PanasonicEoliaClimate(CoordinatorEntity, ClimateEntity):
 
             await self._coordinator.async_request_refresh()
         except DeviceLockedByAnotherControllerException:
-            _LOGGER.error(f"Cannot change {self._appliance.nickname} - it's being controlled by another device")
+            _LOGGER.error(
+                f"Cannot change {self._appliance.nickname} - it's being controlled by another device"
+            )
             raise HomeAssistantError(
                 f"{self._appliance.nickname} is being controlled by another device. "
                 "Please wait 2 minutes before trying again."

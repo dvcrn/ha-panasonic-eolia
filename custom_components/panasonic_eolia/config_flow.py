@@ -1,4 +1,5 @@
 """Config flow for Panasonic Eolia integration."""
+
 import logging
 from typing import Any
 
@@ -53,7 +54,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Try to authenticate
                 eolia = PanasonicEolia(
                     username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD]
+                    password=user_input[CONF_PASSWORD],
                 )
                 _LOGGER.info("Trying to authenticate with username/password")
 
@@ -74,7 +75,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_USERNAME: user_input[CONF_USERNAME],
                             CONF_PASSWORD: user_input[CONF_PASSWORD],
                             CONF_ACCESS_TOKEN: eolia.access_token,
-                            'refresh_token': eolia.refresh_token,
+                            "refresh_token": eolia.refresh_token,
                         },
                     )
                 else:
@@ -86,9 +87,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
         return self.async_show_form(
-            step_id="password",
-            data_schema=STEP_PASSWORD_DATA_SCHEMA,
-            errors=errors
+            step_id="password", data_schema=STEP_PASSWORD_DATA_SCHEMA, errors=errors
         )
 
     async def async_step_token(
@@ -102,7 +101,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Try to authenticate with tokens
                 eolia = PanasonicEolia(
                     access_token=user_input["access_token"],
-                    refresh_token=user_input["refresh_token"]
+                    refresh_token=user_input["refresh_token"],
                 )
                 _LOGGER.info("Trying to authenticate with tokens")
 
@@ -110,7 +109,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 devices = await eolia.get_devices()
 
                 if devices is not None:
-                    _LOGGER.info("Token authentication successful, found %d devices", len(devices))
+                    _LOGGER.info(
+                        "Token authentication successful, found %d devices",
+                        len(devices),
+                    )
 
                     access_token = eolia.access_token or user_input["access_token"]
                     refresh_token = eolia.refresh_token or user_input["refresh_token"]
@@ -130,7 +132,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         },
                     )
                 else:
-                    _LOGGER.error("Token authentication failed - could not fetch devices")
+                    _LOGGER.error(
+                        "Token authentication failed - could not fetch devices"
+                    )
                     errors["base"] = "invalid_auth"
 
             except Exception as e:
@@ -138,7 +142,5 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
 
         return self.async_show_form(
-            step_id="token",
-            data_schema=STEP_TOKEN_DATA_SCHEMA,
-            errors=errors
+            step_id="token", data_schema=STEP_TOKEN_DATA_SCHEMA, errors=errors
         )

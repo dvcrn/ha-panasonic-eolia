@@ -1,0 +1,5 @@
+[tools]
+ruff = "latest"
+
+[tasks.format]
+run = "mise x -- ruff format ."
