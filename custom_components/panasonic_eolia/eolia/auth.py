@@ -31,6 +31,9 @@ logging.basicConfig()
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
 
+AUTH0_CLIENT_IOS = (
+    "eyJ2ZXJzaW9uIjoiMS4zOS4xIiwiZW52Ijp7InN3aWZ0IjoiNS54IiwiaU9TIjoiMjYuMiJ9LCJuYW1lIjoiQXV0aDAuc3dpZnQifQ"
+)
 
 class PanasonicEolia:
     def __init__(
@@ -159,6 +162,12 @@ class PanasonicEolia:
         )
 
         if response.status_code != 302:
+            body_preview = response.text[:500]
+            _LOGGER.debug(
+                "Authorize response unexpected: status=%s body=%s",
+                response.status_code,
+                body_preview,
+            )
             raise Exception(f"Expected redirect, got {response.status_code}")
 
         # Extract state from redirect
@@ -497,8 +506,8 @@ class PanasonicEolia:
             await self.step4_login()
             await self.step5_token_exchange()
             return True
-        except Exception as e:
-            _LOGGER.debug(f"Authentication failed: {e}")
+        except Exception:
+            _LOGGER.exception("Authentication failed")
             return False
 
     async def get_userinfo(self):
@@ -511,7 +520,7 @@ class PanasonicEolia:
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Accept": "*/*",
-            "Auth0-Client": "eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsIklPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ",
+            "Auth0-Client": AUTH0_CLIENT_IOS,
         }
 
         response = await self._request(
@@ -543,7 +552,7 @@ class PanasonicEolia:
             "https://auth.digital.panasonic.com/oauth/token",
             headers={
                 "Content-Type": "application/json",
-                "Auth0-Client": "eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsIklPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ",
+                "Auth0-Client": AUTH0_CLIENT_IOS,
             },
             json=token_data,
         )
