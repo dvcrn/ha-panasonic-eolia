@@ -433,6 +433,40 @@ class PanasonicEolia:
         _LOGGER.debug(f"Failed to fetch userinfo: {response.status_code} - {response.text}")
         return None
 
+    async def refresh_access_token(self) -> bool:
+        """Refresh the access token using the refresh token."""
+        if not self.refresh_token:
+            raise ValueError("refresh_token is required to refresh access token")
+
+        _LOGGER.debug("Refreshing access token...")
+
+        token_data = {
+            'client_id': self.client_id,
+            'grant_type': 'refresh_token',
+            'refresh_token': self.refresh_token,
+        }
+
+        response = await self.session.post(
+            'https://auth.digital.panasonic.com/oauth/token',
+            headers={
+                'Content-Type': 'application/json',
+                'Auth0-Client': 'eyJ2ZXJzaW9uIjoiMS4zOS4xIiwibmFtZSI6IkF1dGgwLnN3aWZ0IiwiZW52Ijp7InZpZXciOiJhc3dhcyIsIklPUyI6IjE4LjYiLCJzd2lmdCI6IjUueCJ9fQ'
+            },
+            json=token_data
+        )
+
+        if response.status_code != 200:
+            _LOGGER.debug(f"Token refresh failed: {response.status_code} - {response.text}")
+            return False
+
+        token_response = response.json()
+        self.access_token = token_response.get('access_token', self.access_token)
+        self.refresh_token = token_response.get('refresh_token', self.refresh_token)
+        self.id_token = token_response.get('id_token', getattr(self, 'id_token', None))
+        self.expires_in = token_response.get('expires_in', getattr(self, 'expires_in', None))
+        _LOGGER.debug("Successfully refreshed access token")
+        return True
+
     async def get_devices(self) -> List[Appliance]:
         """Test the authentication by fetching devices"""
         _LOGGER.debug("\nFetching devices...")

@@ -65,7 +65,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: PanasonicEoliaConfigEntr
 
     userinfo = await auth.get_userinfo()
     if userinfo is None:
-        raise ConfigEntryAuthFailed("Authentication failed when fetching userinfo")
+        _LOGGER.info("Access token invalid, attempting refresh")
+        refreshed = await auth.refresh_access_token()
+        if not refreshed:
+            raise ConfigEntryAuthFailed("Authentication failed when fetching userinfo")
+
+        hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                "access_token": auth.access_token,
+                "refresh_token": auth.refresh_token,
+            },
+        )
+
+        userinfo = await auth.get_userinfo()
+        if userinfo is None:
+            raise ConfigEntryAuthFailed("Authentication failed after token refresh")
 
     devices = await auth.get_devices()
 
